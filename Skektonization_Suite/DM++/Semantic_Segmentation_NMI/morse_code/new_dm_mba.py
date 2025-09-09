@@ -57,7 +57,7 @@ def cmp_dm_img_tri2D(output_dir, input_filename, threshold):
 
     # subprocess.check_call([r"DM++/Semantic_Segmenation_NMI/morse_code/src/a.out", output_dir + 'input.png', output_dir, str(PERSISTENCE_THRESHOLD)])
     # subprocess.call(["DM++/Semantic_Segmenation_NMI/morse_code/src/a.out",output_dir + "/input.png",output_dir,str(PERSISTENCE_THRESHOLD)])
-    command='DM++/Semantic_Segmenation_NMI/morse_code/src/a.out '+ output_dir + '/input.png ' + output_dir + ' ' + str(PERSISTENCE_THRESHOLD)
+    command='DM++/Semantic_Segmentation_NMI/morse_code/src/a.out '+ output_dir + '/input.png ' + output_dir + ' ' + str(PERSISTENCE_THRESHOLD)
     os.system(command)
     
     t_end = time.time()
@@ -355,3 +355,4 @@ def dm_cal(tile, id, ps, OUTDIR):
 if __name__ == '__main__':
     dm_cal()
 '''
+
