@@ -10,11 +10,11 @@ from keras import backend as K
 import sys
 import time
 
-morse_code='DM++/Semantic_Segmenation_NMI/morse_code'
+morse_code='DM++/Semantic_Segmentation_NMI/morse_code'
 sys.path.append(morse_code)
 import albu_dingkang
 
-dm_base='DM++/Semantic_Segmenation_NMI/DM_base'
+dm_base='DM++/Semantic_Segmentation_NMI/DM_base'
 sys.path.append(dm_base)
 from createNetR import *
 
