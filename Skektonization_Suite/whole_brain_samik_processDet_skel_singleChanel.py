@@ -35,7 +35,7 @@ json_out_dir_temp = f"{json_out_dir}/{temp_dir}"
 current_dir = os.getcwd()
 os.chdir(brain_dir)
 
-list_command = 'ls *\&*F*lossless.jp2'
+list_command = 'ls *\&*F*.jp2'
 sections = subprocess.check_output(list_command, shell=True, universal_newlines=True)
 sections_list = sections.split("\n")
 sections_list=sections_list[:-1]
