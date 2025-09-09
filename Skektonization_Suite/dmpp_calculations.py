@@ -1,5 +1,5 @@
-dm_base='DM++/Semantic_Segmenation_NMI/DM_base'
-morse_code='DM++/Semantic_Segmenation_NMI/morse_code'
+dm_base='DM++/Semantic_Segmentation_NMI/DM_base'
+morse_code='DM++/Semantic_Segmentation_NMI/morse_code'
 
 
 import sys
