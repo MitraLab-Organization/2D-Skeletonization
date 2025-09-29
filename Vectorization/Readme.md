@@ -6,7 +6,7 @@
   - Make Sure the directory is writable.
  
 
-- **Run Script** `script2rum.m`:
+- **Run Script** `script2run.m`:
 
     `path := The path of the skeleton output by the Skeletonisation Algorithm`
 
