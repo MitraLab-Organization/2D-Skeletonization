@@ -1,0 +1,36 @@
+# Outputs (generated at runtime)
+outputs/
+*.pyc
+__pycache__/
+
+# Temporary files
+tmp*/
+scratch*/
+*.tmp
+
+# Build artifacts
+*.o
+*.so
+*.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large model files (downloaded at runtime via gdown)
+# Skeletonization_Suite/models/*.pth
+
+# Docker build cache
+.docker/
