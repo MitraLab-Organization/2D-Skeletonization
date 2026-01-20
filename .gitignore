@@ -1,6 +1,11 @@
-# Outputs (generated at runtime)
-outputs/
-*.pyc
+# Outputs (generated at runtime) - except pre-computed bwskel
+outputs/*
+!outputs/pmd/
+!outputs/stp/
+outputs/pmd/*
+!outputs/pmd/bwskel/
+outputs/stp/*
+!outputs/stp/bwskel/
 __pycache__/
 
 # Temporary files
