@@ -104,6 +104,9 @@
     COPY outputs/pmd/bwskel/ /app/outputs/pmd/bwskel/
     COPY outputs/stp/bwskel/ /app/outputs/stp/bwskel/
 
+    # Sample datasets for paper reproduction
+    COPY data/ /data/
+
     # ============================================================
     # Compile C++ binaries
     # ============================================================
