@@ -40,7 +40,66 @@ def dm2d_cal(input_image, binary_image, ve_persistence_threshold, et_persistence
 
     shutil.rmtree(scratch_dir)
 
-# ... (dm2d_cal_noMP and merge_json unchanged) ...
+def dm2d_cal_noMP(input_image,binary_image,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_filename):
+
+    scratch_root = os.path.join(os.path.dirname(json_out_dir), "scratch_1")
+    if not os.path.exists(scratch_root):
+        os.makedirs(scratch_root, exist_ok=True)
+
+    scratch_dir=f'{scratch_root}/{json_filename}'
+    if not os.path.exists(scratch_dir):
+        os.mkdir(scratch_dir)
+
+    [input_image_crop,crop_coordinates,dipha_input,dipha_thresh_edges,dipha_edges_txt,vert_txt]=dm.compute_persistence_single_channel(input_image,scratch_dir)
+
+    [dimo_vert,dimo_edge,uncropped_dimo_vert,no_dup_crossed_edge]=dm.generate_morse_graphs(dipha_edges_txt,vert_txt,crop_coordinates,binary_image,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
+    [paths,haircut_edge]=dm.postprocess_graphs(no_dup_crossed_edge,uncropped_dimo_vert,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
+
+    dm.cshl_post_results(uncropped_dimo_vert,haircut_edge,json_out_dir,json_filename,ve_persistence_threshold,et_persistence_threshold)
+
+    shutil.rmtree(scratch_dir)
+
+def merge_json(json_dir, json_dir_temp, x, y, division_x, division_y):
+    print("-------------start merging json files of different tiles-------------------")
+    files = os.listdir(json_dir_temp)
+
+    json_files = [file for file in files if file.lower().endswith(".json")]
+
+    all_features=[]
+    tile_size_x=x//division_x
+    tile_size_y=y//division_y
+
+    for file in json_files:
+        current_tile=file.split('.')[0]
+        file_path=f"{json_dir_temp}/{file}"
+        with open(file_path) as f:
+            gj = geojson.load(f)
+
+        current_tile=int(current_tile)
+        row=current_tile//division_x
+        column=current_tile%division_x
+        x_off=column*tile_size_x
+        y_off=row*tile_size_y
+        print("current tile:",current_tile,"row:",row,"column:",column,"x_off:",x_off,"y_off",y_off)
+
+        total_segments=len(gj['features'])
+    
+        for i in range(0,total_segments):
+            gj['features'][i]['geometry']['coordinates'][0][0]=gj['features'][i]['geometry']['coordinates'][0][0]+x_off
+            gj['features'][i]['geometry']['coordinates'][1][0]=gj['features'][i]['geometry']['coordinates'][1][0]+x_off
+            gj['features'][i]['geometry']['coordinates'][0][1]=gj['features'][i]['geometry']['coordinates'][0][1]-y_off
+            gj['features'][i]['geometry']['coordinates'][1][1]=gj['features'][i]['geometry']['coordinates'][1][1]-y_off
+
+        all_features.extend(gj['features'])
+
+    merged_feature_collection = geojson.FeatureCollection(all_features)
+    json_out_file=f"{json_dir}/merged_geojson.json"
+
+    with open(json_out_file, "w") as output_file:
+        output_file.write(geojson.dumps(merged_feature_collection, sort_keys=True))
+    print(">>>>>>>")
+    print("Merged JSON file: ",json_out_file)
+    shutil.rmtree(json_dir_temp)
 
 def DM2D_Pipeline(input_image,binary_image,division_x,division_y,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_out_dir_temp,scratch_dir):
 

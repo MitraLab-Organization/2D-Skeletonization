@@ -39,23 +39,23 @@ run_inference() {
     
     # neutube
     echo "--- neutube ---"
-    python /app/Utilities/inference/batch_neutube.py \
+    python /app/Baselines/neutube/batch_neutube.py \
         -i "$DATA_DIR/$DATASET/lkl" \
         -o "$OUTPUT_DIR/$DATASET/neutube_swc"
     
     echo "Converting neutube SWC to TIF..."
-    python /app/Utilities/inference/batch_convert_swc.py \
+    python /app/Baselines/neutube/batch_convert_swc.py \
         --swc_dir "$OUTPUT_DIR/$DATASET/neutube_swc" \
         --lkl_dir "$DATA_DIR/$DATASET/lkl" \
         --out_dir "$OUTPUT_DIR/$DATASET/neutube"
     
     # VESS
     echo "--- VESS ---"
-    python /app/Utilities/inference/run_vess.py --dataset "$DATASET" --skip-eval
+    python /app/Baselines/vess/run_vess.py --dataset "$DATASET" --skip-eval
     
     # PHD
     echo "--- PHD ---"
-    python /app/Utilities/inference/run_phd.py --dataset "$DATASET" --skip-eval
+    python /app/Baselines/phd/run_phd.py --dataset "$DATASET" --skip-eval
     
     # diffskel
     echo "--- diffskel ---"
@@ -202,7 +202,7 @@ case "$COMMAND" in
         echo "Input: $INPUT_FILE"
         
         cd /app/Skeletonization_Suite
-        python /app/Utilities/inference/run_whole_image.py \
+        python /app/Skeletonization_Suite/run_whole_image.py \
             --input "$INPUT_FILE" \
             --output "$OUTPUT_DIR/whole_image"
         
@@ -228,7 +228,7 @@ case "$COMMAND" in
         echo "Input directory: $INPUT_DIR"
         
         cd /app/Skeletonization_Suite
-        python /app/Utilities/inference/run_whole_image.py \
+        python /app/Skeletonization_Suite/run_whole_image.py \
             --input_dir "$INPUT_DIR" \
             --output "$OUTPUT_DIR/whole_image"
         
