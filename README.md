@@ -16,12 +16,21 @@ docker pull samikbanerjee69/dm_full_pipeline_docker_cshl:latest
 
 This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format).
 
-### Command
+### Basic Command
 Run the following command to process a single image. Replace `/path/to/local/input.jp2` with your actual file path.
 
 ```bash
 docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2
 ```
+
+### Specifying Custom Output Name
+Use the `--output` flag to specify a custom output name (useful for batch processing):
+
+```bash
+docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --output MyBrain_001
+```
+
+This will produce output files named `MyBrain_001.json`, etc., instead of deriving the name from the input filename.
 
 ### Outputs
 After the run completes, check your local `outputs/whole_image/` folder:
@@ -33,7 +42,8 @@ After the run completes, check your local `outputs/whole_image/` folder:
 | **Preview Image** | `outputs/whole_image/visualization/{ImageID}_{Section}_preview.jpg` | Compressed, easy-to-open preview image. |
 | **Binary Mask** | `outputs/whole_image/mask/{ImageID}_{Section}.jpg` | Binary pixel mask of the skeleton. |
 
-*(Note: If the input filename does not follow the `ID_Section.ext` convention, the output will default to `Brain_0`.)*
+*(Note: If the input filename does not follow the `ID_Section.ext` convention and `--output` is not specified, the output will default to `Brain_0`.)*
+
 
 ---
 
