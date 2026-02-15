@@ -14,23 +14,52 @@ docker pull samikbanerjee69/dm_full_pipeline_docker_cshl:latest
 
 ## 2. Usage: Processing Whole Images
 
-This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format).
+This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format). 
 
-### Basic Command
-Run the following command to process a single image. Replace `/path/to/local/input.jp2` with your actual file path.
+### Disclaimer: 
 
-```bash
-docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2
-```
+The code may require pre-processing of images for some cases.
 
-### Specifying Custom Output Name
-Use the `--output` flag to specify a custom output name (useful for batch processing):
+### Basic Command (Using Modes)
+Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
 
 ```bash
-docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --output MyBrain_001
+docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --mode pmd
 ```
 
-This will produce output files named `MyBrain_001.json`, etc., instead of deriving the name from the input filename.
+### Parameter Modes
+The pipeline supports three parameter modes via the `--mode` flag:
+
+| Mode | Use Case | Parameters Used |
+|---|---|---|
+| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16` |
+| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
+| **`custom`** | Fully custom parameters | Requires `--persistence_threshold`, `--min_size`, `--norm_factor`. Optional: `--ve_persistence_threshold` (default: 0) |
+
+### Advanced Usage
+
+**1. Custom Parameters:**
+To use custom parameters, use `--mode custom` (or omit mode) and specify the required thresholds:
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16
+```
+
+**2. Custom Parameters with VE Persistence:**
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16
+```
+
+**3. Custom Output Name:**
+Use `--output` to specify a custom name for the results:
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --mode pmd --output MyBrain_001
+```
+
+**4. Batch Processing (`run-folder`):**
+To process an entire folder of images:
+```bash
+docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-folder /input --mode pmd
+```
 
 ### Outputs
 After the run completes, check your local `outputs/whole_image/` folder:
@@ -91,6 +120,43 @@ If you need to modify the code or build the image locally:
 
 3.  **Run:**
     Use the image name in any of the commands above.
+
+### Exploring Source Code Inside the Docker Image
+
+If you only pulled the image and don't have the GitHub repo, you can still inspect and modify the source code:
+
+```bash
+# Open an interactive shell inside the container
+docker run --rm -it samikbanerjee69/dm_full_pipeline_docker_cshl:latest bash
+```
+
+Once inside, the full source code is at `/app/`:
+```
+/app/
+├── Skeletonization_Suite/       # Main pipeline code
+│   ├── run_whole_image.py       # Whole-image entry point
+│   ├── pipeline_processDetect_skel_samik_singleChanel.py
+│   ├── albu_calculations_singleChanel.py
+│   ├── run_dm2d_tiles.py        # Tiled evaluation entry point
+│   └── models/                  # Pre-trained model weights
+├── Vectorization/               # Vectorization & graph analysis
+├── Utilities/                   # Evaluation & visualization scripts
+├── Baselines/                   # Baseline methods (PHD, diffskel, etc.)
+└── docker-entrypoint.sh         # Docker command dispatcher
+```
+
+You can browse and edit files with standard tools (`cat`, `vi`, `nano` etc.):
+```bash
+cat /app/Skeletonization_Suite/run_whole_image.py
+```
+
+To **copy source code out** of the container to your local machine:
+```bash
+# From your host machine (not inside the container)
+docker create --name tmp_dm2d samikbanerjee69/dm_full_pipeline_docker_cshl:latest
+docker cp tmp_dm2d:/app ./dm2d_source
+docker rm tmp_dm2d
+```
 
 ---
 
