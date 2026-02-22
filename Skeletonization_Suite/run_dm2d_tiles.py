@@ -11,6 +11,10 @@ Usage:
 import os
 import sys
 import numpy as np
+
+# Allow large images
+os.environ['OPENCV_IO_MAX_IMAGE_PIXELS'] = str(pow(2, 40))
+
 import cv2
 from pathlib import Path
 from PIL import Image
@@ -22,9 +26,9 @@ from skimage.morphology import remove_small_objects
 Image.MAX_IMAGE_PIXELS = None
 
 # Setup paths for DM2D
-# Use relative paths assuming this script is in DM2D_Skeletonization_Vectorization
+# This script is already inside Skeletonization_Suite
 script_dir = os.path.dirname(os.path.abspath(__file__))
-skeletonization_path = os.path.join(script_dir, "Skeletonization_Suite")
+skeletonization_path = script_dir  # We're already in Skeletonization_Suite
 dm2d_code_path = os.path.join(skeletonization_path, "DM_2D_code")
 
 os.chdir(skeletonization_path)

@@ -11,8 +11,10 @@ Usage:
     python plot_json.py --json <path/to/file.json> --output_dir <path/to/output> [--width W] [--height H]
 """
 
-import argparse
 import os
+os.environ['OPENCV_IO_MAX_IMAGE_PIXELS'] = str(pow(2, 40))  # Allow large images
+
+import argparse
 import json
 import numpy as np
 import cv2

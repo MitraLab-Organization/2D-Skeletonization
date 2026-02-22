@@ -5,6 +5,7 @@ dm2d_code='DM_2D_code'
 import shutil
 import os
 os.environ['OPENCV_IO_ENABLE_JASPER'] = 'true'
+os.environ['OPENCV_IO_MAX_IMAGE_PIXELS'] = str(pow(2, 40))  # Allow very large images
 import sys
 import numpy as np
 import cv2
@@ -107,7 +108,7 @@ def dm_fn(tile,id,temp_dir):
 
 
 # ========== Reading Image =========== #
-def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp):
+def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16):
 
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
@@ -129,10 +130,10 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     # return removed
 
     # Getting mask
-    mask_image=mask(img[:,:,0])
-    # maskB = np.ones((width,height),dtype='uint8')
-    # maskB = maskB / maskB.max()
-    # mask_image = np.uint8(maskB) * 25
+    # mask_image=mask(img[:,:,0])
+    maskB = np.ones((width,height),dtype='uint8')
+    maskB = maskB / maskB.max()
+    mask_image = np.uint8(maskB) * 255
     b=time.time()
     print("Time to read image: ",b-a," Seconds")
     print("------------Reading Image Completed------------")
@@ -180,7 +181,7 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
             
     print("------------Starting  ------------")
     a=time.time()
-    albu_out=albu_cal(width,height,total_tiles,tile,mask_image,albu_models)
+    albu_out=albu_cal(width,height,total_tiles,tile,mask_image,albu_models,norm_factor=norm_factor)
 
     ALBU_out=np.zeros((width,height),dtype=np.uint8)
     count=0
@@ -191,7 +192,7 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
                 count = count + 1
                 
     likelihood_image = ALBU_out
-    likelihood_image[likelihood_image<40] = 0
+    # likelihood_image[likelihood_image<40] = 0
     lkl_path = f"{json_out_dir}/lkl/"
     if not os.path.exists(lkl_path):
         os.mkdir(lkl_path)
@@ -216,14 +217,15 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     
     _, likelihood_image_bin = cv2.threshold(likelihood_image, 20, 255, cv2.THRESH_BINARY)
 
-    ve_persistence_threshold=0
-    et_persistence_threshold=0
+    print(f"  VE persistence: {ve_persistence_threshold}, ET persistence: {et_persistence_threshold}")
     bit_depth = 8 # bit depth of the input images (should be 8 or 16-bit)
     background_pixel_val = 0 # background pixel values for real-world neuron fragments
 
     DM2D_Pipeline(likelihood_image,likelihood_image_bin,division_x,division_y,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_out_dir_temp,scratch_dir)
-    rename_command=f"mv {json_out_dir}/merged_geojson.json {json_out_dir}/{brain_no}_{section_num}.json"
-    os.system(rename_command)
+    # Use shutil.move instead of os.system to handle special characters in filenames (e.g., &)
+    src_json = os.path.join(json_out_dir, "merged_geojson.json")
+    dst_json = os.path.join(json_out_dir, f"{brain_no}_{section_num}.json")
+    shutil.move(src_json, dst_json)
 
 
     b=time.time()
@@ -242,14 +244,14 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
         gj = geojson.load(f)
 
     total_segments=len(gj['features'])
-    background_image=np.zeros_like(img)
+    background_image=np.zeros((width, height), dtype=np.uint8)
 
     for i in range(0,total_segments):
         x1=gj['features'][i]['geometry']['coordinates'][0][0]
         y1=-gj['features'][i]['geometry']['coordinates'][0][1]
         x2=gj['features'][i]['geometry']['coordinates'][1][0]
         y2=-gj['features'][i]['geometry']['coordinates'][1][1]
-        cv2.line(background_image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 255), 1, lineType=cv2.LINE_AA)
+        cv2.line(background_image, (int(x1), int(y1)), (int(x2), int(y2)), 255, 1, lineType=cv2.LINE_AA)
     
     cv2.imwrite(skel_bin_path_file, background_image)
     print(">>>>> Saved Binary files: ",f"{skel_bin_path_file}")

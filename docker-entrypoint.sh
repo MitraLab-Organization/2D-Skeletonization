@@ -192,7 +192,7 @@ case "$COMMAND" in
         INPUT_FILE="${ARG2}"
         if [ -z "$INPUT_FILE" ]; then
             echo "Error: No input file specified"
-            echo "Usage: run-image <path/to/image.jp2>"
+            echo "Usage: run-image <path/to/image.jp2> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--output <name>]"
             exit 1
         fi
         
@@ -202,9 +202,53 @@ case "$COMMAND" in
         echo "Input: $INPUT_FILE"
         
         cd /app/Skeletonization_Suite
+        
+        # Collect all remaining args after command and input file
+        shift 2  # Remove command and input file
+        EXTRA_ARGS=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --mode)
+                    EXTRA_ARGS="$EXTRA_ARGS --mode $2"
+                    echo "Mode: $2"
+                    shift 2
+                    ;;
+                --ve_persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --ve_persistence_threshold $2"
+                    echo "VE Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --persistence_threshold $2"
+                    echo "Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --min_size)
+                    EXTRA_ARGS="$EXTRA_ARGS --min_size $2"
+                    echo "Min size: $2"
+                    shift 2
+                    ;;
+                --norm_factor)
+                    EXTRA_ARGS="$EXTRA_ARGS --norm_factor $2"
+                    echo "Norm factor: $2"
+                    shift 2
+                    ;;
+                --output)
+                    EXTRA_ARGS="$EXTRA_ARGS --output_name $2"
+                    echo "Output name: $2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Warning: Unknown argument '$1' ignored"
+                    shift
+                    ;;
+            esac
+        done
+        
         python /app/Skeletonization_Suite/run_whole_image.py \
             --input "$INPUT_FILE" \
-            --output "$OUTPUT_DIR/whole_image"
+            --output "$OUTPUT_DIR/whole_image" \
+            $EXTRA_ARGS
         
         echo ""
         echo "Processing complete! Results: $OUTPUT_DIR/whole_image/"
@@ -218,7 +262,7 @@ case "$COMMAND" in
         INPUT_DIR="${ARG2}"
         if [ -z "$INPUT_DIR" ]; then
             echo "Error: No input directory specified"
-            echo "Usage: run-folder <path/to/images/>"
+            echo "Usage: run-folder <path/to/images/> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N]"
             exit 1
         fi
         
@@ -228,9 +272,48 @@ case "$COMMAND" in
         echo "Input directory: $INPUT_DIR"
         
         cd /app/Skeletonization_Suite
+        
+        # Collect all remaining args after command and input dir
+        shift 2  # Remove command and input dir
+        EXTRA_ARGS=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --mode)
+                    EXTRA_ARGS="$EXTRA_ARGS --mode $2"
+                    echo "Mode: $2"
+                    shift 2
+                    ;;
+                --ve_persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --ve_persistence_threshold $2"
+                    echo "VE Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --persistence_threshold $2"
+                    echo "Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --min_size)
+                    EXTRA_ARGS="$EXTRA_ARGS --min_size $2"
+                    echo "Min size: $2"
+                    shift 2
+                    ;;
+                --norm_factor)
+                    EXTRA_ARGS="$EXTRA_ARGS --norm_factor $2"
+                    echo "Norm factor: $2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Warning: Unknown argument '$1' ignored"
+                    shift
+                    ;;
+            esac
+        done
+        
         python /app/Skeletonization_Suite/run_whole_image.py \
             --input_dir "$INPUT_DIR" \
-            --output "$OUTPUT_DIR/whole_image"
+            --output "$OUTPUT_DIR/whole_image" \
+            $EXTRA_ARGS
         
         echo ""
         echo "Batch processing complete! Results: $OUTPUT_DIR/whole_image/"
@@ -270,8 +353,20 @@ case "$COMMAND" in
         echo "  demo <pmd|stp>     Quick demo on one dataset (no sweeps)"
         echo ""
         echo "WHOLE-IMAGE PROCESSING:"
-        echo "  run-image <file>   Process single JP2/TIFF through DM++ pipeline"
-        echo "  run-folder <dir>   Process all images in a folder"
+        echo "  run-image <file> [options]     Process single JP2/TIFF through DM++ pipeline"
+        echo "  run-folder <dir> [options]     Process all images in a folder"
+        echo ""
+        echo "  Options for run-image / run-folder:"
+        echo "    --mode <pmd|stp|custom>              Parameter preset (default: custom)"
+        echo "    --ve_persistence_threshold <N>       VE persistence threshold (default: 0, optional for custom)"
+        echo "    --persistence_threshold <N>          ET persistence threshold (required for custom)"
+        echo "    --min_size <N>                       Min component size (required for custom)"
+        echo "    --norm_factor <N>                    Pixel normalization divisor (required for custom)"
+        echo "    --output <name>                      Custom output name (run-image only)"
+        echo ""
+        echo "  Presets:"
+        echo "    pmd:  ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16"
+        echo "    stp:  ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256"
         echo ""
         echo "INDIVIDUAL STEPS:"
         echo "  inference <dataset>   Run inference only"
@@ -286,6 +381,8 @@ case "$COMMAND" in
         echo "EXAMPLES:"
         echo "  docker run ... dm2d paper"
         echo "  docker run ... dm2d demo pmd"
-        echo "  docker run -v /my/image.jp2:/input.jp2 ... dm2d run-image /input.jp2"
+        echo "  docker run -v /my/image.jp2:/input.jp2 ... dm2d run-image /input.jp2 --mode pmd"
+        echo "  docker run -v /my/image.jp2:/input.jp2 ... dm2d run-image /input.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16"
+        echo "  docker run -v /my/image.jp2:/input.jp2 ... dm2d run-image /input.jp2 --mode stp --output MyBrain_001"
         ;;
 esac

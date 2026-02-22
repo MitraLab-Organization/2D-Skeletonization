@@ -14,11 +14,7 @@ docker pull samikbanerjee69/dm_full_pipeline_docker_cshl:latest
 
 ## 2. Usage: Processing Whole Images
 
-This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format). 
-
-### Disclaimer: 
-
-The code may require pre-processing of images for some cases.
+This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format).
 
 ### Basic Command (Using Modes)
 Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
@@ -33,7 +29,7 @@ The pipeline supports three parameter modes via the `--mode` flag:
 | Mode | Use Case | Parameters Used |
 |---|---|---|
 | **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16` |
-| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
+    | **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
 | **`custom`** | Fully custom parameters | Requires `--persistence_threshold`, `--min_size`, `--norm_factor`. Optional: `--ve_persistence_threshold` (default: 0) |
 
 ### Advanced Usage

@@ -6,6 +6,9 @@ Compares any model's skeleton predictions against GT with:
 - All metrics (Precision, Recall, F-Score, Dice, IoU)
 """
 
+import os
+os.environ['OPENCV_IO_MAX_IMAGE_PIXELS'] = str(pow(2, 40))  # Allow large images
+
 import numpy as np
 import cv2
 from pathlib import Path

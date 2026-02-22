@@ -6,10 +6,13 @@ sys.path.append(morse_code)
 import albu_dingkang
 
 
-def albu_cal(width, height, total_tiles, tile, mask_image, models_albu):
+def albu_cal(width, height, total_tiles, tile, mask_image, models_albu, norm_factor=16):
     """
     Run ALBU prediction on tiles in batches.
     Optimized for GPU throughput.
+    
+    Args:
+        norm_factor: Normalization divisor for tile pixel values (PMD=16, STP=256)
     """
     # Initialize output array
     albu_out = np.zeros((512, 512, int(total_tiles)), dtype=np.uint8)
@@ -36,7 +39,7 @@ def albu_cal(width, height, total_tiles, tile, mask_image, models_albu):
                 # Normalize and prepare tile (512, 512, 3)
                 current_tile_raw = tile[input_tile_idx]
                 tile_container = np.zeros((512, 512, 3), dtype=np.uint8)
-                tile_container[:,:,0] = np.uint8(current_tile_raw // 16)
+                tile_container[:,:,0] = np.uint8(current_tile_raw // norm_factor)
                 
                 tiles_to_process.append(tile_container)
                 indices_to_map.append(output_idx)
