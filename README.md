@@ -29,7 +29,7 @@ The pipeline supports three parameter modes via the `--mode` flag:
 | Mode | Use Case | Parameters Used |
 |---|---|---|
 | **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16` |
-    | **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
+| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
 | **`custom`** | Fully custom parameters | Requires `--persistence_threshold`, `--min_size`, `--norm_factor`. Optional: `--ve_persistence_threshold` (default: 0) |
 
 ### Advanced Usage
