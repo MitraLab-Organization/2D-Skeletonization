@@ -12,67 +12,7 @@ docker pull samikbanerjee69/dm_full_pipeline_docker_cshl:latest
 
 ---
 
-## 2. Usage: Processing Whole Images
-
-This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format).
-
-### Basic Command (Using Modes)
-Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
-
-```bash
-docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --mode pmd
-```
-
-### Parameter Modes
-The pipeline supports three parameter modes via the `--mode` flag:
-
-| Mode | Use Case | Parameters Used |
-|---|---|---|
-| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16` |
-| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256` |
-| **`custom`** | Fully custom parameters | Requires `--persistence_threshold`, `--min_size`, `--norm_factor`. Optional: `--ve_persistence_threshold` (default: 0) |
-
-### Advanced Usage
-
-**1. Custom Parameters:**
-To use custom parameters, use `--mode custom` (or omit mode) and specify the required thresholds:
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16
-```
-
-**2. Custom Parameters with VE Persistence:**
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16
-```
-
-**3. Custom Output Name:**
-Use `--output` to specify a custom name for the results:
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --mode pmd --output MyBrain_001
-```
-
-**4. Batch Processing (`run-folder`):**
-To process an entire folder of images:
-```bash
-docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-folder /input --mode pmd
-```
-
-### Outputs
-After the run completes, check your local `outputs/whole_image/` folder:
-
-| File Type | Location | Description |
-|-----------|----------|-------------|
-| **Vectorized Skeleton** | `outputs/whole_image/{ImageID}_{Section}.json` | The final skeleton in GeoJSON format. |
-| **High-Res Visualization** | `outputs/whole_image/visualization/{ImageID}_{Section}_full.tif` | Full-resolution overlay of skeleton on original image. |
-| **Preview Image** | `outputs/whole_image/visualization/{ImageID}_{Section}_preview.jpg` | Compressed, easy-to-open preview image. |
-| **Binary Mask** | `outputs/whole_image/mask/{ImageID}_{Section}.jpg` | Binary pixel mask of the skeleton. |
-
-*(Note: If the input filename does not follow the `ID_Section.ext` convention and `--output` is not specified, the output will default to `Brain_0`.)*
-
-
----
-
-## 3. Usage: Reproducing Paper Results
+## 2. Usage: Reproducing Paper Results
 
 To reproduce the benchmark results from the paper:
 
@@ -98,7 +38,102 @@ Results will be organized in `outputs/`:
 
 ---
 
-## 4. Advanced: Build Docker from Source
+## 3. Usage: Whole Image - Full Pipeline (`run-pipeline`)
+
+This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format). This process runs the AI (ALBU) inference, Topological skeletonization, and vectorization.
+
+### Single Image
+Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
+
+```bash
+docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-pipeline /input/image.jp2 --mode pmd
+```
+
+### Batch Processing (`run-pipeline-folder`)
+To process an entire folder of original images:
+```bash
+docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-pipeline-folder /input --mode pmd
+```
+
+---
+
+## 4. Usage: Whole Image - Only DM2D (`run-dm2d`)
+
+To exclusively run the topological processing and vectorization natively on a pre-computed probability map (LKL output), bypassing the ALBU Neural Network inference.
+
+### Single LKL Image
+```bash
+docker run --rm -v /path/to/lkl.jpg:/input/lkl.jpg -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-dm2d /input/lkl.jpg --mode pmd
+```
+
+### Batch Processing (`run-dm2d-folder`)
+To process an entire folder of LKL probability map images:
+```bash
+docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-dm2d-folder /input --mode pmd
+```
+
+---
+
+## 5. Common Parameters for Whole Image Processing
+
+Both `run-pipeline` and `run-dm2d` share a common parameter engine.
+
+### Parameter Modes (Presets)
+The pipeline supports three parameter modes via the `--mode` flag:
+
+| Mode | Use Case | Parameters Used |
+|---|---|---|
+| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16`, `mask=true` |
+| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256`, `mask=true` |
+| **`custom`** | Fully custom parameters | Requires specifying exact thresholds (see below) |
+
+### Custom Parameters
+
+If you use `--mode custom` (or omit the mode flag entirely), you can specify fine-grained thresholds.
+Depending on your run mode (`run-pipeline` vs `run-dm2d`), different parameters are required or ignored by the backend:
+
+| Flag | Description | Used In |
+|---|---|---|
+| `--persistence_threshold <N>` | (Required) Edge-Triangle persistence, removes spurious branches | Both |
+| `--min_size <N>` | (Required) Removes disconnected skeleton components smaller than this size | Both |
+| `--ve_persistence_threshold <N>` | (Optional, default 0) Vertex-Edge persistence | Both |
+| `--norm_factor <N>` | (Required for full pipeline) ALBU pixel normalization divisor | `run-pipeline` only |
+| `--mask <true/false>` | (Required for full pipeline) Enable/disable Otsu tissue masking | `run-pipeline` only |
+| `--output <name>` | (Optional) Specify a custom name for the results (e.g., `MyBrain_001`) | Both (Single image only) |
+
+**Examples:**
+
+*Custom parameters for full pipeline with custom output name:*
+```bash
+docker run --rm ... dm2d run-pipeline /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16 --mask true --output MyBrain_001
+```
+
+*Custom parameters for DM2D only:*
+```bash
+docker run --rm ... dm2d run-dm2d /input/lkl.jpg --persistence_threshold 16 --min_size 30
+```
+
+*Override Mask in Preset Modes (pipeline only):*
+```bash
+docker run --rm ... dm2d run-pipeline /input/image.jp2 --mode pmd --mask false
+```
+
+### Outputs
+After the run completes, check your local `outputs/whole_image/` folder:
+
+| File Type | Location | Description |
+|-----------|----------|-------------|
+| **Vectorized Skeleton** | `outputs/whole_image/{ImageID}_{Section}.json` | The final skeleton in GeoJSON format. |
+| **High-Res Visualization** | `outputs/whole_image/visualization/{ImageID}_{Section}_full.tif` | Full-resolution overlay of skeleton on original image. |
+| **Preview Image** | `outputs/whole_image/visualization/{ImageID}_{Section}_preview.jpg` | Compressed, easy-to-open preview image. |
+| **Binary Mask** | `outputs/whole_image/mask/{ImageID}_{Section}.jpg` | Binary pixel mask of the skeleton. |
+
+*(Note: If the input filename does not follow the `ID_Section.ext` convention and `--output` is not specified, the output will default to `Brain_0`.)*
+
+
+---
+
+## 6. Advanced: Build Docker from Source
 
 If you need to modify the code or build the image locally:
 
@@ -156,7 +191,7 @@ docker rm tmp_dm2d
 
 ---
 
-## 5. Manual Setup (Without Docker)
+## 7. Manual Setup (Without Docker)
 
 For users who prefer to run the pipeline natively:
 
@@ -209,4 +244,3 @@ g++ -O3 Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/paths_sr
 cd Skeletonization_Suite
 python run_dm2d_tiles.py --lkl_dir ../data/pmd/lkl --output_dir ../outputs/pmd/dm2d --ve_persistence 0 --et_persistence 64 --min_size 40
 ```
-
