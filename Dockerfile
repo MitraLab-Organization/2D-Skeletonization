@@ -14,6 +14,10 @@
     USER root
     WORKDIR /app
 
+    # Enable GPU compute via nvidia-container-toolkit
+    ENV NVIDIA_VISIBLE_DEVICES=all
+    ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
     # ============================================================
     # System dependencies
     # ============================================================

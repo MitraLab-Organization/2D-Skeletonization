@@ -92,27 +92,27 @@ def predict(models, img_arr, image_type='12_bit_RGB'):
     else:
         rgb_img_arr = conversion[image_type](img_arr)
         
-    # with torch.nograd():
-    batch = torch.autograd.Variable(img_to_tensor(rgb_img_arr)).to(device)
-    # print(batch.shape)
-    ret_arr = []
-    for model in models:
-        # model.cuda()  ## added by pratik - moving both tensors in same gpu device
-        if torch.cuda.is_available():
-             model.cuda()
-        
-        # Original: sigmoid(model(batch)) -> shape (N, 1, H, W) or (1, 1, H, W)
-        pred1 = F.sigmoid(model(batch))
-        pred2 = flip_tensor_lr(model(flip_tensor_lr(batch)))
-        pred3 = flip_tensor_ud(model(flip_tensor_ud(batch)))
-        pred4 = flip_tensor_ud(flip_tensor_lr(model(flip_tensor_ud(flip_tensor_lr(batch)))))
+    with torch.no_grad():
+        batch = torch.autograd.Variable(img_to_tensor(rgb_img_arr)).to(device)
+        # print(batch.shape)
+        ret_arr = []
+        for model in models:
+            # model.cuda()  ## added by pratik - moving both tensors in same gpu device
+            if torch.cuda.is_available():
+                 model.cuda()
+            
+            # Remove the first F.sigmoid because it will be applied later
+            pred1 = model(batch)
+            pred2 = flip_tensor_lr(model(flip_tensor_lr(batch)))
+            pred3 = flip_tensor_ud(model(flip_tensor_ud(batch)))
+            pred4 = flip_tensor_ud(flip_tensor_lr(model(flip_tensor_ud(flip_tensor_lr(batch)))))
 
-        masks = [pred1, pred2, pred3, pred4]
-        masks = list(map(F.sigmoid, masks))
-        new_mask = torch.mean(torch.stack(masks, 0), 0) # Shape: (N, 1, H, W)
-        ret_arr.append(to_numpy(new_mask)) # to_numpy moves axis 1 to -1 -> (N, H, W, 1) or (1, H, W, 1)
-        
-        del pred1
+            masks = [pred1, pred2, pred3, pred4]
+            masks = list(map(F.sigmoid, masks))
+            new_mask = torch.mean(torch.stack(masks, 0), 0) # Shape: (N, 1, H, W)
+            ret_arr.append(to_numpy(new_mask)) # to_numpy moves axis 1 to -1 -> (N, H, W, 1) or (1, H, W, 1)
+            
+            del pred1
         del pred2
         del pred3
         del pred4

@@ -48,7 +48,8 @@ def process_2d_image(img_path, output_path, args):
         img = img / 255.0
     
     # Convert to tensor with shape [1, 1, H, W]
-    img = torch.tensor(img, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    img = torch.tensor(img, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
     
     # Initialize skeletonization module
     skeletonization_module = Skeletonize(
@@ -57,18 +58,18 @@ def process_2d_image(img_path, output_path, args):
         tau=args.tau,
         simple_point_detection=args.simple_point_detection,
         num_iter=args.num_iter
-    )
+    ).to(device)
     
     if args.multi_step > 1:
         # Apply skeletonization multiple times and average
         skeleton_stack = np.zeros_like(img.squeeze())
         for step in range(args.multi_step):
-            skeleton_stack = skeleton_stack + skeletonization_module(img).numpy().squeeze()
+            skeleton_stack = skeleton_stack + skeletonization_module(img).cpu().numpy().squeeze()
         skeleton = (skeleton_stack / args.multi_step).round()
     else:
         # Single pass skeletonization
         skeleton = skeletonization_module(img)
-        skeleton = skeleton.numpy().squeeze()
+        skeleton = skeleton.cpu().numpy().squeeze()
     
     # Convert back to uint8 and save
     skeleton = (skeleton * 255).astype(np.uint8)
@@ -85,7 +86,8 @@ def process_3d_volume(img_path, output_path, args):
         img = img / 255.0
     
     # Convert to tensor with shape [1, 1, D, H, W]
-    img = torch.tensor(img, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    img = torch.tensor(img, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
     
     # Initialize skeletonization module
     skeletonization_module = Skeletonize(
@@ -94,11 +96,11 @@ def process_3d_volume(img_path, output_path, args):
         tau=args.tau,
         simple_point_detection=args.simple_point_detection,
         num_iter=args.num_iter
-    )
+    ).to(device)
     
     # Process volume
     skeleton = skeletonization_module(img)
-    skeleton = skeleton.numpy().squeeze()
+    skeleton = skeleton.cpu().numpy().squeeze()
     
     # Save as .npy file
     np.save(output_path, skeleton)

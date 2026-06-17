@@ -42,19 +42,44 @@ Results will be organized in `outputs/`:
 
 This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format). This process runs the AI (ALBU) inference, Topological skeletonization, and vectorization.
 
-### Single Image
-Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
+### High-Speed GPU Processing (`gpu_parallel`)
+
+For significantly faster inference and tensor operations, use the `gpu_parallel` Docker tag. This requires an NVIDIA GPU and the Docker `--gpus all` flag. If your images are `.jp2` files, you must also mount your Kakadu installation.
+
+**General Template:**
+```bash
+docker run --rm --gpus all \
+  -v /path/to/your/kakadu:/kakadu \
+  -e LD_LIBRARY_PATH=/kakadu/lib/Linux-x86-64-gcc \
+  -v /path/to/local/input.jp2:/input/image.jp2 \
+  -v $(pwd)/outputs:/outputs \
+  samikbanerjee69/dm_full_pipeline_docker_cshl:gpu_parallel \
+  run-pipeline /input/image.jp2 --mode pmd
+```
+
+**Real-world Example (MD1022):**
+```bash
+docker run --rm --gpus all \
+  -v /home/samik/v8_2_1-02038E:/kakadu \
+  -e LD_LIBRARY_PATH=/kakadu/lib/Linux-x86-64-gcc \
+  -v /nfs/data/main/M38/mba_converted_imaging_data/MD1022/MD1022/MD1022-F50-2025.02.06-03.16.05_MD1022_2_0100_lossy.jp2:/input/image.jp2 \
+  -v $(pwd)/dm2doutputs/md1022:/outputs \
+  samikbanerjee69/dm_full_pipeline_docker_cshl:gpu_parallel \
+  run-pipeline /input/image.jp2 --mode pmd
+```
+
+### Standard CPU Processing (`latest`)
+If you do not have a GPU, you can run the standard CPU pipeline.
 
 ```bash
 docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-pipeline /input/image.jp2 --mode pmd
 ```
 
 ### Batch Processing (`run-pipeline-folder`)
-To process an entire folder of original images:
+To process an entire folder of original images using the GPU parallel tag:
 ```bash
-docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-pipeline-folder /input --mode pmd
+docker run --rm --gpus all -v /path/to/your/kakadu:/kakadu -e LD_LIBRARY_PATH=/kakadu/lib/Linux-x86-64-gcc -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:gpu_parallel run-pipeline-folder /input --mode pmd
 ```
-
 ---
 
 ## 4. Usage: Whole Image - Only DM2D (`run-dm2d`)

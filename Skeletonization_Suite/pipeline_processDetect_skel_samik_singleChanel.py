@@ -68,14 +68,29 @@ def mask(org_img):
 
     return up_size_img_norm_bin
 
-def kakadu_image_read(input_image):
-    print(f"Reading {input_image} with glymur...")
+def kakadu_image_read(input_image, temp_dir='/tmp'):
+    print(f"Reading {input_image} with kdu_expand...")
     try:
-        import glymur
-        jp2 = glymur.Jp2k(input_image)
-        img = jp2[:]
+        import subprocess
+        import tifffile as tiff
+        import os
+        
+        base_no_ext = os.path.splitext(os.path.basename(input_image))[0]
+        out_tif = os.path.join(temp_dir, f"{base_no_ext}_kdu_temp.tif")
+        
+        print(f"Running kdu_expand on {input_image} -> {out_tif}")
+        # Run kdu_expand. Assuming it's mounted at /kakadu
+        subprocess.run(["/kakadu/bin/Linux-x86-64-gcc/kdu_expand", "-i", input_image, "-o", out_tif, "-num_threads", "32"], check=True)
+        
+        print("kdu_expand finished. Reading tif...")
+        img = tiff.imread(out_tif)
+        
+        # Cleanup temp file
+        if os.path.exists(out_tif):
+            os.remove(out_tif)
+            
     except Exception as e:
-        print(f"glymur failed: {e}, falling back to cv2")
+        print(f"kdu_expand failed: {e}, falling back to cv2")
         img = cv2.imread(input_image, cv2.IMREAD_UNCHANGED)
         if img is not None and len(img.shape) == 3 and img.shape[2] == 3:
              img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -114,7 +129,7 @@ def dm_fn(tile,id,temp_dir):
 
 
 # ========== Reading Image =========== #
-def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16):
+def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16, use_mask=True, **kwargs):
 
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
@@ -128,7 +143,7 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
 
     print(input_image_path)
     # img = cv2.imread(input_image_path, cv2.IMREAD_UNCHANGED)
-    img = kakadu_image_read(input_image_path)
+    img = kakadu_image_read(input_image_path, temp_dir=scratch_dir)
     print("Dimension of the input image: ",img.shape)
     width,height,channel=img.shape
     print(img.dtype)
@@ -166,24 +181,7 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     print("Total tiles: ",total_tiles)
     print("------------Tiling Completed------------")
 
-    # ============ dm ================= #
-    print("------------DM Started------------\n")
 
-    argList = zip(tile,id,temp_dir_list)
-    max_cpu=multiprocessing.cpu_count()
-    p = multiprocessing.Pool(max_cpu-5)
-    # p = multiprocessing.Pool(5)
-    dm_opL = p.map(dm_fn, iterable=argList)
-    p.close()
-    p.join()
-
-
-    b=time.time()
-    print("Time to execute DM: ",b-a," Seconds")
-
-    print("------------DM Completed------------")
-    shutil.rmtree(temp_dir)
-    # =============================== #
             
     print("------------Starting  ------------")
     a=time.time()
