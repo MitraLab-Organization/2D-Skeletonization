@@ -114,7 +114,7 @@ def dm_fn(tile,id,temp_dir):
 
 
 # ========== Reading Image =========== #
-def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16):
+def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16,use_mask=True, bypass_albu=False):
 
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
@@ -136,78 +136,105 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     # return removed
 
     # Getting mask
-    # mask_image=mask(img[:,:,0])
-    maskB = np.ones((width,height),dtype='uint8')
-    maskB = maskB / maskB.max()
-    mask_image = np.uint8(maskB) * 255
+    if use_mask:
+        print("Computing tissue mask via Otsu thresholding...")
+        mask_image=mask(img[:,:,0])
+    else:
+        print("Skipping mask (using full image)...")
+        maskB = np.ones((width,height),dtype='uint8')
+        maskB = maskB / maskB.max()
+        mask_image = np.uint8(maskB) * 255
     b=time.time()
     print("Time to read image: ",b-a," Seconds")
     print("------------Reading Image Completed------------")
 
+    if bypass_albu:
+        # ---- Bypass ALBU: treat input as pre-computed likelihood image ----
+        print("------------Bypassing ALBU Inference------------")
+        likelihood_image = img[:,:,0] if len(img.shape) == 3 else img
+        lkl_path = f"{json_out_dir}/lkl/"
+        if not os.path.exists(lkl_path):
+            os.mkdir(lkl_path)
+        lkl_image=f"{lkl_path}/{brain_no}_{section_num}.jpg"
+        cv2.imwrite(lkl_image, likelihood_image)
+    else:
+        # ---- Full pipeline: Tiling + DM + ALBU ----
 
-    # ==================== Tiling ================= #
-    print("------------  Tiling Started  ------------\n")
-    a=time.time()
-    id = []
-    tile = []
-    temp_dir_list=[]
-    count = 0
+        # ==================== Tiling ================= #
+        print("------------  Tiling Started  ------------\n")
+        a=time.time()
+        id = []
+        tile = []
+        temp_dir_list=[]
+        count = 0
 
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
-            if np.sum(mask_image[row:row+512,column:column+512]):
-                tile.append(img[row:row+512,column:column+512,0])
-                id.append(count)
-                count = count + 1
-                temp_dir_list.append(temp_dir)
+        # Pad to nearest multiple of 512 so edge tiles aren't dropped
+        pad_y = (512 - (width % 512)) % 512
+        pad_x = (512 - (height % 512)) % 512
+        padded_width = width + pad_y
+        padded_height = height + pad_x
+        print(f"Original dims: {width}x{height}, Padded dims: {padded_width}x{padded_height}")
 
+        img_padded = cv2.copyMakeBorder(img[:,:,0], 0, pad_y, 0, pad_x, cv2.BORDER_REFLECT_101)
+        mask_padded = cv2.copyMakeBorder(mask_image, 0, pad_y, 0, pad_x, cv2.BORDER_CONSTANT, value=0)
 
-    total_tiles=count
-    print("Total tiles: ",total_tiles)
-    print("------------Tiling Completed------------")
-
-    # ============ dm ================= #
-    print("------------DM Started------------\n")
-
-    argList = zip(tile,id,temp_dir_list)
-    max_cpu=multiprocessing.cpu_count()
-    p = multiprocessing.Pool(max_cpu-5)
-    # p = multiprocessing.Pool(5)
-    dm_opL = p.map(dm_fn, iterable=argList)
-    p.close()
-    p.join()
+        for row in range(0, padded_width-511, 512):
+            for column in range(0, padded_height-511, 512):
+                if np.sum(mask_padded[row:row+512,column:column+512]):
+                    tile.append(img_padded[row:row+512,column:column+512])
+                    id.append(count)
+                    count = count + 1
+                    temp_dir_list.append(temp_dir)
 
 
-    b=time.time()
-    print("Time to execute DM: ",b-a," Seconds")
+        total_tiles=count
+        print("Total tiles: ",total_tiles)
+        print("------------Tiling Completed------------")
 
-    print("------------DM Completed------------")
-    shutil.rmtree(temp_dir)
-    # =============================== #
-            
-    print("------------Starting  ------------")
-    a=time.time()
-    albu_out=albu_cal(width,height,total_tiles,tile,mask_image,albu_models,norm_factor=norm_factor)
+        # ============ dm ================= #
+        print("------------DM Started------------\n")
 
-    ALBU_out=np.zeros((width,height),dtype=np.uint8)
-    count=0
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
-            if np.sum(mask_image[row:row+512,column:column+512]):
-                ALBU_out[row:row+512,column:column+512]=albu_out[:,:,count]
-                count = count + 1
-                
-    likelihood_image = ALBU_out
-    # likelihood_image[likelihood_image<40] = 0
-    lkl_path = f"{json_out_dir}/lkl/"
-    if not os.path.exists(lkl_path):
-        os.mkdir(lkl_path)
-    lkl_image=f"{lkl_path}/{brain_no}_{section_num}.jpg"
-    cv2.imwrite(lkl_image, likelihood_image)
+        argList = zip(tile,id,temp_dir_list)
+        max_cpu=multiprocessing.cpu_count()
+        p = multiprocessing.Pool(max_cpu-5)
+        # p = multiprocessing.Pool(5)
+        dm_opL = p.map(dm_fn, iterable=argList)
+        p.close()
+        p.join()
 
-    b=time.time()
-    print("Time to execute : ",b-a," Seconds")
-    print("------------Completed-------------")
+
+        b=time.time()
+        print("Time to execute DM: ",b-a," Seconds")
+
+        print("------------DM Completed------------")
+        shutil.rmtree(temp_dir)
+        # =============================== #
+
+        print("------------Starting ALBU Inference ------------")
+        a=time.time()
+        albu_out=albu_cal(padded_width,padded_height,total_tiles,tile,mask_padded,albu_models,norm_factor=norm_factor)
+
+        ALBU_out=np.zeros((padded_width,padded_height),dtype=np.uint8)
+        count=0
+        for row in range(0, padded_width-511, 512):
+            for column in range(0, padded_height-511, 512):
+                if np.sum(mask_padded[row:row+512,column:column+512]):
+                    ALBU_out[row:row+512,column:column+512]=albu_out[:,:,count]
+                    count = count + 1
+
+        # Crop back to original dimensions
+        likelihood_image = ALBU_out[:width, :height]
+
+        # likelihood_image[likelihood_image<40] = 0
+        lkl_path = f"{json_out_dir}/lkl/"
+        if not os.path.exists(lkl_path):
+            os.mkdir(lkl_path)
+        lkl_image=f"{lkl_path}/{brain_no}_{section_num}.jpg"
+        cv2.imwrite(lkl_image, likelihood_image)
+
+        b=time.time()
+        print("Time to execute ALBU: ",b-a," Seconds")
+        print("------------ALBU Completed-------------")
     
     
     #------------------DEBUG-----------------------------#
