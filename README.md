@@ -12,95 +12,7 @@ docker pull samikbanerjee69/dm_full_pipeline_docker_cshl:latest
 
 ---
 
-## 2. Usage: Processing Whole Images
-
-This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format).
-
-`run-image`/`run-folder` produce the likelihood map by running each tile through ALBU (a 4-fold ResNet34 encoder-decoder), then clipping low-confidence background pixels to zero. DM2D then skeletonizes that likelihood map the same way it does for the paper-reproduction path.
-
-### Basic Command (Using Modes)
-Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
-
-```bash
-docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --mode pmd
-```
-
-### Parameter Modes
-The pipeline supports three parameter modes via the `--mode` flag:
-
-| Mode | Use Case | Parameters Used |
-|---|---|---|
-| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16`, `likelihood_threshold=40` |
-| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256`, `likelihood_threshold=40` |
-| **`custom`** | Fully custom parameters | Requires `--persistence_threshold`, `--min_size`, `--norm_factor`, `--likelihood_threshold`. Optional: `--ve_persistence_threshold` (default: 0) |
-
-### Advanced Usage
-
-**1. Custom Parameters:**
-To use custom parameters, use `--mode custom` (or omit mode) and specify the required thresholds:
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40
-```
-
-**2. Custom Parameters with VE Persistence:**
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40
-```
-
-**3. Custom Output Name:**
-Use `--output` to specify a custom name for the results:
-```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --mode pmd --output MyBrain_001
-```
-
-**4. Batch Processing (`run-folder`):**
-To process an entire folder of images:
-```bash
-docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-folder /input --mode pmd
-```
-
-### Outputs
-After the run completes, check your local `outputs/whole_image/` folder:
-
-| File Type | Location | Description |
-|-----------|----------|-------------|
-| **Vectorized Skeleton** | `outputs/whole_image/{ImageID}_{Section}.json` | The final skeleton in GeoJSON format. |
-| **High-Res Visualization** | `outputs/whole_image/visualization/{ImageID}_{Section}_full.tif` | Full-resolution overlay of skeleton on original image. |
-| **Preview Image** | `outputs/whole_image/visualization/{ImageID}_{Section}_preview.jpg` | Compressed, easy-to-open preview image. |
-| **Binary Mask** | `outputs/whole_image/mask/{ImageID}_{Section}.jpg` | Binary pixel mask of the skeleton. |
-
-*(Note: If the input filename does not follow the `ID_Section.ext` convention and `--output` is not specified, the output will default to `Brain_0`.)*
-
-### Splitting the Pipeline: Likelihood and Skeleton as Separate Steps
-
-`run-image`/`run-folder` do the whole job in one call, but sometimes it's useful to stop halfway: inspect or reuse the likelihood map without skeletonizing it, or skeletonize a likelihood image you already have without touching ALBU or the raw image at all. Two more commands expose each half independently, and together they reproduce `run-image`'s output exactly.
-
-**`image-to-likelihood`** runs the same ALBU inference and background-clipping step as `run-image`, then stops.
-
-```bash
-docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest image-to-likelihood /input/image.jp2 --mode pmd --output MyBrain_001
-```
-
-Options: `--mode`, `--norm_factor`, `--likelihood_threshold`, `--output`. Result: `outputs/likelihood/lkl/MyBrain_001_0.jpg`.
-
-**`likelihood-to-skeleton`** takes a likelihood image — either from the command above, or the intermediate `lkl/*.jpg` file `run-image` writes along the way — and runs DM2D, vectorization, and visualization on it. No raw image or neural network involved.
-
-```bash
-docker run --rm -v /path/to/likelihood.jpg:/input/likelihood.jpg -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest likelihood-to-skeleton /input/likelihood.jpg --mode pmd --output MyBrain_001
-```
-
-Options: `--mode`, `--ve_persistence_threshold`, `--persistence_threshold`, `--min_size`, `--output`. Result: `outputs/skeleton/` (same file layout as `run-image`'s `whole_image/` output, described in the table above).
-
-Chained together, these two commands are equivalent to running `run-image` directly:
-
-```bash
-docker run --rm ... samikbanerjee69/dm_full_pipeline_docker_cshl:latest image-to-likelihood /input.jp2 --mode pmd --output MyBrain_001
-docker run --rm ... samikbanerjee69/dm_full_pipeline_docker_cshl:latest likelihood-to-skeleton /outputs/likelihood/lkl/MyBrain_001_0.jpg --mode pmd --output MyBrain_001
-```
-
----
-
-## 3. Usage: Reproducing Paper Results
+## 2. Usage: Reproducing Paper Results
 
 To reproduce the benchmark results from the paper:
 
@@ -126,7 +38,110 @@ Results will be organized in `outputs/`:
 
 ---
 
-## 4. Advanced: Build Docker from Source
+## 3. Usage: Whole Image - Full Pipeline (`run-image`)
+
+This is the primary mode for users who want to skeletonize new, large brain sections (JP2 or TIFF format). It runs ALBU inference (a 4-fold ResNet34 encoder-decoder) to produce a likelihood map, clips low-confidence background pixels to zero, then skeletonizes that map with DM2D the same way the paper-reproduction path does.
+
+### Single Image
+Run the following command to process a single image using the **PMD** parameter preset (default is custom, so mode must be specified or parameters provided).
+
+```bash
+docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-image /input/image.jp2 --mode pmd
+```
+
+### Batch Processing (`run-folder`)
+To process an entire folder of original images:
+```bash
+docker run --rm -v /path/to/images:/input -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest run-folder /input --mode pmd
+```
+
+### Outputs
+After the run completes, check your local `outputs/whole_image/` folder:
+
+| File Type | Location | Description |
+|-----------|----------|-------------|
+| **Vectorized Skeleton** | `outputs/whole_image/{ImageID}_{Section}.json` | The final skeleton in GeoJSON format. |
+| **High-Res Visualization** | `outputs/whole_image/visualization/{ImageID}_{Section}_full.tif` | Full-resolution overlay of skeleton on original image. |
+| **Preview Image** | `outputs/whole_image/visualization/{ImageID}_{Section}_preview.jpg` | Compressed, easy-to-open preview image. |
+| **Binary Mask** | `outputs/whole_image/mask/{ImageID}_{Section}.jpg` | Binary pixel mask of the skeleton. |
+
+*(Note: If the input filename does not follow the `ID_Section.ext` convention and `--output` is not specified, the output will default to `Brain_0`.)*
+
+---
+
+## 4. Usage: Staged Processing (Likelihood and Skeleton as Separate Steps)
+
+`run-image`/`run-folder` do the whole job in one call, but sometimes it's useful to stop halfway: inspect or reuse the likelihood map without skeletonizing it, or skeletonize a likelihood image you already have without touching ALBU or the raw image at all. Two more commands expose each half independently, and together they reproduce `run-image`'s output exactly.
+
+### `image-to-likelihood`: ALBU Only
+Runs the same ALBU inference and background-clipping step as `run-image`, then stops.
+
+```bash
+docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest image-to-likelihood /input/image.jp2 --mode pmd --output MyBrain_001
+```
+
+Options: `--mode`, `--norm_factor`, `--likelihood_threshold`, `--output`. Result: `outputs/likelihood/lkl/MyBrain_001_0.jpg`.
+
+### `likelihood-to-skeleton`: DM2D Only
+Takes a likelihood image — either from the command above, or the intermediate `lkl/*.jpg` file `run-image` writes along the way — and runs DM2D, vectorization, and visualization on it. No raw image or neural network involved.
+
+```bash
+docker run --rm -v /path/to/likelihood.jpg:/input/likelihood.jpg -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest likelihood-to-skeleton /input/likelihood.jpg --mode pmd --output MyBrain_001
+```
+
+Options: `--mode`, `--ve_persistence_threshold`, `--persistence_threshold`, `--min_size`, `--output`. Result: `outputs/skeleton/` (same file layout as `run-image`'s `whole_image/` output, described in the table above).
+
+### Chaining
+Chained together, these two commands are equivalent to running `run-image` directly:
+
+```bash
+docker run --rm ... samikbanerjee69/dm_full_pipeline_docker_cshl:latest image-to-likelihood /input.jp2 --mode pmd --output MyBrain_001
+docker run --rm ... samikbanerjee69/dm_full_pipeline_docker_cshl:latest likelihood-to-skeleton /outputs/likelihood/lkl/MyBrain_001_0.jpg --mode pmd --output MyBrain_001
+```
+
+---
+
+## 5. Common Parameters for Whole Image Processing
+
+`run-image`/`run-folder`, `image-to-likelihood`, and `likelihood-to-skeleton` share a common parameter engine.
+
+### Parameter Modes (Presets)
+The pipeline supports three parameter modes via the `--mode` flag:
+
+| Mode | Use Case | Parameters Used |
+|---|---|---|
+| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16`, `likelihood_threshold=40` |
+| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256`, `likelihood_threshold=40` |
+| **`custom`** | Fully custom parameters | Requires specifying exact thresholds (see below) |
+
+### Custom Parameters
+
+If you use `--mode custom` (or omit the mode flag entirely), you can specify fine-grained thresholds. Which flags are required depends on which command you're running:
+
+| Flag | Description | Used In |
+|---|---|---|
+| `--persistence_threshold <N>` | (Required) ET persistence, removes spurious branches | `run-image`/`run-folder`, `likelihood-to-skeleton` |
+| `--min_size <N>` | (Required) Removes disconnected skeleton components smaller than this size | `run-image`/`run-folder`, `likelihood-to-skeleton` |
+| `--ve_persistence_threshold <N>` | (Optional, default 0) VE persistence | `run-image`/`run-folder`, `likelihood-to-skeleton` |
+| `--norm_factor <N>` | (Required) ALBU pixel normalization divisor | `run-image`/`run-folder`, `image-to-likelihood` |
+| `--likelihood_threshold <N>` | (Required) Likelihood background clip-to-zero cutoff | `run-image`/`run-folder`, `image-to-likelihood` |
+| `--output <name>` | (Optional) Custom name for the results (e.g., `MyBrain_001`) | All three (single image only) |
+
+**Examples:**
+
+*Custom parameters with custom output name:*
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40 --output MyBrain_001
+```
+
+*Custom parameters with VE persistence:*
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40
+```
+
+---
+
+## 6. Advanced: Build Docker from Source
 
 If you need to modify the code or build the image locally:
 
@@ -184,7 +199,7 @@ docker rm tmp_dm2d
 
 ---
 
-## 5. Manual Setup (Without Docker)
+## 7. Manual Setup (Without Docker)
 
 For users who prefer to run the pipeline natively:
 
@@ -230,4 +245,3 @@ cd ../../../../..
 cd Skeletonization_Suite
 python run_dm2d_tiles.py --lkl_dir ../data/pmd/lkl --output_dir ../outputs/pmd/dm2d --ve_persistence 0 --et_persistence 64 --min_size 40
 ```
-
