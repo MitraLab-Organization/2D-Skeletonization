@@ -25,29 +25,50 @@ import DiMo2d as dm
 
 
 def mask(org_img):
-    scaling_factor=100
-    # img = cv2.cvtColor(np.uint8(org_img), cv2.COLOR_BGR2GRAY)
+    """Binary tissue mask via Otsu thresholding on a downsampled image, with
+    morphological cleanup to remove speckle and fill holes.
+
+    Downsample target and kernel sizes scale with the input image (rather
+    than a fixed absolute pixel count) so this works on both full whole-brain
+    scans and small crops: a fixed 100x downsample with a fixed 10x10 opening
+    kernel collapses a 1000x1000 crop to a 10x10 intermediate -- the same
+    size as the kernel -- which erases the mask entirely regardless of
+    actual tissue content.
+    """
     img=np.uint8(org_img)
     img_dim = img.shape
-    down_size = (img_dim[1]//scaling_factor, img_dim[0]//scaling_factor)
 
-    # down sample the image 
+    # Downsample so the shorter side is ~200px (matching the original
+    # design's typical result at its old fixed 100x factor on whole-brain
+    # scans), without shrinking small images below their native size.
+    target_short_side = 200
+    scale = min(1.0, target_short_side / min(img_dim[0], img_dim[1]))
+    down_size = (max(1, int(img_dim[1] * scale)), max(1, int(img_dim[0] * scale)))
+
+    # down sample the image
     down_size_img = cv2.resize(img, down_size, interpolation=cv2.INTER_AREA)
 
     # Otsu's thresholding
     _, binary_img = cv2.threshold(down_size_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
+    # Kernel sizes as a fraction of the downsampled image (same ratios as
+    # the original fixed 10/32 against its typical ~200px downsampled size)
+    # so opening/closing stays proportionally meaningful at any input scale.
+    short_side = min(down_size)
+    open_k = max(1, round(short_side * 0.05))
+    close_k = max(1, round(short_side * 0.16))
+
     # Remove non-brain portion
-    kernel = np.ones((10, 10), np.uint8)
+    kernel = np.ones((open_k, open_k), np.uint8)
     binary_img_no = cv2.morphologyEx(binary_img, cv2.MORPH_OPEN, kernel)
 
     # Filling holes
-    kernel = np.ones((32, 32), np.uint8)
+    kernel = np.ones((close_k, close_k), np.uint8)
     binary_image_no_holes = cv2.morphologyEx(binary_img_no, cv2.MORPH_CLOSE, kernel)
 
-    # up sample the image 
+    # up sample the image
     up_size_img_norm = cv2.resize(binary_image_no_holes, (img_dim[1], img_dim[0]), interpolation=cv2.INTER_CUBIC)
-    
+
     # binarizing the upsampled image
     _, up_size_img_norm_bin = cv2.threshold(up_size_img_norm, 5, 255, cv2.THRESH_BINARY)
     up_size_img_norm_bin = up_size_img_norm_bin.astype(np.uint8)
@@ -92,7 +113,7 @@ def tile_starts(dim, tile_size=512):
     return starts
 
 # ========== Reading Image =========== #
-def compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=16, likelihood_threshold=40):
+def compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=16, likelihood_threshold=40, use_mask=True):
     """Read a whole-section image, tile it, and run ALBU to produce a stitched
     likelihood image. Saves it to {json_out_dir}/lkl/{brain_no}_{section_num}.jpg
     and returns the array."""
@@ -109,11 +130,28 @@ def compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, al
     print(img.dtype)
     print(img.max())
 
-    # Getting mask
-    # mask_image=mask(img[:,:,0])
-    maskB = np.ones((width,height),dtype='uint8')
-    maskB = maskB / maskB.max()
-    mask_image = np.uint8(maskB) * 255
+    # Getting mask. Raw pixel values (often 16-bit, e.g. PMD ~500, STP ~29000)
+    # must be brought into 0-255 range the same way ALBU's own input is
+    # normalized (see albu_cal) before Otsu thresholding, or the mask ends up
+    # thresholding on wrapped-around noise instead of actual tissue contrast.
+    if use_mask:
+        print("Computing tissue mask via Otsu thresholding...")
+        normalized_channel = np.uint8(img[:,:,0] // norm_factor)
+        mask_image = mask(normalized_channel)
+        if not np.any(mask_image):
+            # Otsu-style bulk tissue/background separation doesn't fit every
+            # image -- e.g. sparse, low-intensity thin-fiber signal can fail
+            # to produce any foreground at all. An empty mask would silently
+            # skip every tile and produce a blank likelihood image, which is
+            # worse than just not masking, so fall back to the full frame.
+            print("Warning: tissue mask came back empty, falling back to full frame")
+            maskB = np.ones((width,height),dtype='uint8')
+            maskB = maskB / maskB.max()
+            mask_image = np.uint8(maskB) * 255
+    else:
+        maskB = np.ones((width,height),dtype='uint8')
+        maskB = maskB / maskB.max()
+        mask_image = np.uint8(maskB) * 255
     b=time.time()
     print("Time to read image: ",b-a," Seconds")
     print("------------Reading Image Completed------------")
@@ -231,8 +269,8 @@ def skeletonize_likelihood(likelihood_image, json_out_dir, json_out_dir_temp, sc
     return json_file_path
 
 
-def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16,likelihood_threshold=40):
-    likelihood_image = compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=norm_factor, likelihood_threshold=likelihood_threshold)
+def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16,likelihood_threshold=40,use_mask=True):
+    likelihood_image = compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=norm_factor, likelihood_threshold=likelihood_threshold, use_mask=use_mask)
     return skeletonize_likelihood(likelihood_image, json_out_dir, json_out_dir_temp, scratch_dir, brain_no, section_num, ve_persistence_threshold=ve_persistence_threshold, et_persistence_threshold=et_persistence_threshold)
 
 

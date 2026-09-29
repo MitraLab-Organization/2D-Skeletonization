@@ -26,7 +26,7 @@ from run_whole_image import load_models, MODE_PRESETS
 
 
 def process_single_image(input_path, output_dir, models=None, output_name=None,
-                          norm_factor=16, likelihood_threshold=40):
+                          norm_factor=16, likelihood_threshold=40, use_mask=True):
     """Compute and save the likelihood image for a single input image."""
     import pipeline_processDetect_skel_samik_singleChanel as original_pipeline
     import shutil
@@ -78,7 +78,8 @@ def process_single_image(input_path, output_dir, models=None, output_name=None,
             section_num=section_num,
             albu_models=models,
             norm_factor=norm_factor,
-            likelihood_threshold=likelihood_threshold
+            likelihood_threshold=likelihood_threshold,
+            use_mask=use_mask
         )
         success = True
     except Exception as e:
@@ -105,9 +106,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
-  pmd       norm_factor=16, likelihood_threshold=40
-  stp       norm_factor=256, likelihood_threshold=40
-  custom    Specify --norm_factor and --likelihood_threshold
+  pmd       norm_factor=16, likelihood_threshold=40, mask=true
+  stp       norm_factor=256, likelihood_threshold=40, mask=true
+  custom    Specify --norm_factor, --likelihood_threshold, and --mask
 
 Examples:
   %(prog)s --input image.jp2 --output out/ --mode pmd
@@ -124,25 +125,31 @@ Examples:
                          help='Normalization divisor for pixel values (required for custom mode, PMD=16, STP=256)')
     parser.add_argument('--likelihood_threshold', type=int, default=None,
                          help='Likelihood pixels below this are clipped to zero (required for custom mode, PMD=50, STP=60)')
+    parser.add_argument('--mask', type=str, default=None, choices=['true', 'false'],
+                         help='Restrict processing to tissue via Otsu thresholding (default: true for pmd/stp, required for custom)')
 
     args = parser.parse_args()
 
     if args.mode in MODE_PRESETS:
         norm_factor = MODE_PRESETS[args.mode]['norm_factor']
         likelihood_threshold = MODE_PRESETS[args.mode]['likelihood_threshold']
+        use_mask = MODE_PRESETS[args.mode]['use_mask']
+        if args.mask is not None:
+            use_mask = (args.mask == 'true')
         if args.norm_factor is not None or args.likelihood_threshold is not None:
             print(f"Warning: --mode {args.mode} overrides --norm_factor/--likelihood_threshold")
-        print(f"Using {args.mode.upper()} preset: norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}")
+        print(f"Using {args.mode.upper()} preset: norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}, mask={use_mask}")
     else:
-        if args.norm_factor is None or args.likelihood_threshold is None:
-            parser.error("--norm_factor and --likelihood_threshold are required when using custom mode (default)")
+        if args.norm_factor is None or args.likelihood_threshold is None or args.mask is None:
+            parser.error("--norm_factor, --likelihood_threshold, and --mask are required when using custom mode (default)")
         norm_factor = args.norm_factor
         likelihood_threshold = args.likelihood_threshold
-        print(f"Using custom parameters: norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}")
+        use_mask = (args.mask == 'true')
+        print(f"Using custom parameters: norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}, mask={use_mask}")
 
     if args.input:
         process_single_image(args.input, args.output, output_name=args.output_name,
-                              norm_factor=norm_factor, likelihood_threshold=likelihood_threshold)
+                              norm_factor=norm_factor, likelihood_threshold=likelihood_threshold, use_mask=use_mask)
     elif args.input_dir:
         if args.output_name:
             print("Warning: --output_name is ignored in batch mode (--input_dir)")
@@ -154,7 +161,7 @@ Examples:
         print(f"Found {len(files)} images to process")
         for i, f in enumerate(sorted(files)):
             print(f"\n[{i+1}/{len(files)}]")
-            process_single_image(f, args.output, norm_factor=norm_factor, likelihood_threshold=likelihood_threshold)
+            process_single_image(f, args.output, norm_factor=norm_factor, likelihood_threshold=likelihood_threshold, use_mask=use_mask)
     else:
         print("Error: Must specify --input or --input_dir")
         sys.exit(1)

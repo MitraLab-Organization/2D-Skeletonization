@@ -192,7 +192,7 @@ case "$COMMAND" in
         INPUT_FILE="${ARG2}"
         if [ -z "$INPUT_FILE" ]; then
             echo "Error: No input file specified"
-            echo "Usage: run-image <path/to/image.jp2> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N] [--output <name>]"
+            echo "Usage: run-image <path/to/image.jp2> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N] [--mask true|false] [--output <name>]"
             exit 1
         fi
         
@@ -238,6 +238,11 @@ case "$COMMAND" in
                     echo "Likelihood threshold: $2"
                     shift 2
                     ;;
+                --mask)
+                    EXTRA_ARGS="$EXTRA_ARGS --mask $2"
+                    echo "Mask: $2"
+                    shift 2
+                    ;;
                 --output)
                     EXTRA_ARGS="$EXTRA_ARGS --output_name $2"
                     echo "Output name: $2"
@@ -267,7 +272,7 @@ case "$COMMAND" in
         INPUT_DIR="${ARG2}"
         if [ -z "$INPUT_DIR" ]; then
             echo "Error: No input directory specified"
-            echo "Usage: run-folder <path/to/images/> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N]"
+            echo "Usage: run-folder <path/to/images/> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N] [--mask true|false]"
             exit 1
         fi
         
@@ -313,6 +318,11 @@ case "$COMMAND" in
                     echo "Likelihood threshold: $2"
                     shift 2
                     ;;
+                --mask)
+                    EXTRA_ARGS="$EXTRA_ARGS --mask $2"
+                    echo "Mask: $2"
+                    shift 2
+                    ;;
                 *)
                     echo "Warning: Unknown argument '$1' ignored"
                     shift
@@ -340,7 +350,7 @@ case "$COMMAND" in
         INPUT_FILE="${ARG2}"
         if [ -z "$INPUT_FILE" ]; then
             echo "Error: No input file specified"
-            echo "Usage: image-to-likelihood <path/to/image.jp2> [--mode pmd|stp|custom] [--norm_factor N] [--likelihood_threshold N] [--output <name>]"
+            echo "Usage: image-to-likelihood <path/to/image.jp2> [--mode pmd|stp|custom] [--norm_factor N] [--likelihood_threshold N] [--mask true|false] [--output <name>]"
             exit 1
         fi
 
@@ -369,6 +379,11 @@ case "$COMMAND" in
                 --likelihood_threshold)
                     EXTRA_ARGS="$EXTRA_ARGS --likelihood_threshold $2"
                     echo "Likelihood threshold: $2"
+                    shift 2
+                    ;;
+                --mask)
+                    EXTRA_ARGS="$EXTRA_ARGS --mask $2"
+                    echo "Mask: $2"
                     shift 2
                     ;;
                 --output)
@@ -504,16 +519,17 @@ case "$COMMAND" in
         echo "    --min_size <N>                       Min component size (required for custom)"
         echo "    --norm_factor <N>                    Pixel normalization divisor (required for custom)"
         echo "    --likelihood_threshold <N>           Likelihood background clip-to-zero cutoff (required for custom)"
+        echo "    --mask <true|false>                  Restrict processing to tissue via Otsu thresholding (default: true for pmd/stp, required for custom)"
         echo "    --output <name>                      Custom output name (run-image only)"
         echo ""
         echo "  Presets:"
-        echo "    pmd:  ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16, likelihood_threshold=40"
-        echo "    stp:  ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256, likelihood_threshold=40"
+        echo "    pmd:  ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16, likelihood_threshold=40, mask=true"
+        echo "    stp:  ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256, likelihood_threshold=40, mask=true"
         echo ""
         echo "STAGED PROCESSING (split image -> skeleton into two steps):"
         echo "  image-to-likelihood <file> [options]     Entry Point 2: image -> likelihood only"
         echo "                                            (ALBU inference + background threshold)"
-        echo "    Options: --mode, --norm_factor, --likelihood_threshold, --output"
+        echo "    Options: --mode, --norm_factor, --likelihood_threshold, --mask, --output"
         echo ""
         echo "  likelihood-to-skeleton <file> [options]  Entry Point 3: likelihood -> skeleton only"
         echo "                                            (no raw image or neural network needed)"

@@ -80,7 +80,7 @@ Runs the same ALBU inference and background-clipping step as `run-image`, then s
 docker run --rm -v /path/to/local/input.jp2:/input/image.jp2 -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest image-to-likelihood /input/image.jp2 --mode pmd --output MyBrain_001
 ```
 
-Options: `--mode`, `--norm_factor`, `--likelihood_threshold`, `--output`. Result: `outputs/likelihood/lkl/MyBrain_001_0.jpg`.
+Options: `--mode`, `--norm_factor`, `--likelihood_threshold`, `--mask`, `--output`. Result: `outputs/likelihood/lkl/MyBrain_001_0.jpg`.
 
 ### `likelihood-to-skeleton`: DM2D Only
 Takes a likelihood image — either from the command above, or the intermediate `lkl/*.jpg` file `run-image` writes along the way — and runs DM2D, vectorization, and visualization on it. No raw image or neural network involved.
@@ -110,8 +110,8 @@ The pipeline supports three parameter modes via the `--mode` flag:
 
 | Mode | Use Case | Parameters Used |
 |---|---|---|
-| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16`, `likelihood_threshold=40` |
-| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256`, `likelihood_threshold=40` |
+| **`pmd`** | For PMD-like datasets | `ve_persistence=0`, `et_persistence=64`, `min_size=40`, `norm_factor=16`, `likelihood_threshold=40`, `mask=true` |
+| **`stp`** | For STP-like datasets | `ve_persistence=0`, `et_persistence=32`, `min_size=12`, `norm_factor=256`, `likelihood_threshold=40`, `mask=true` |
 | **`custom`** | Fully custom parameters | Requires specifying exact thresholds (see below) |
 
 ### Custom Parameters
@@ -125,18 +125,24 @@ If you use `--mode custom` (or omit the mode flag entirely), you can specify fin
 | `--ve_persistence_threshold <N>` | (Optional, default 0) VE persistence | `run-image`/`run-folder`, `likelihood-to-skeleton` |
 | `--norm_factor <N>` | (Required) ALBU pixel normalization divisor | `run-image`/`run-folder`, `image-to-likelihood` |
 | `--likelihood_threshold <N>` | (Required) Likelihood background clip-to-zero cutoff | `run-image`/`run-folder`, `image-to-likelihood` |
+| `--mask <true/false>` | (Required) Restrict ALBU processing to tissue via Otsu thresholding, instead of the full frame | `run-image`/`run-folder`, `image-to-likelihood` |
 | `--output <name>` | (Optional) Custom name for the results (e.g., `MyBrain_001`) | All three (single image only) |
 
 **Examples:**
 
 *Custom parameters with custom output name:*
 ```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40 --output MyBrain_001
+docker run --rm ... dm2d run-image /input/image.jp2 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40 --mask true --output MyBrain_001
 ```
 
 *Custom parameters with VE persistence:*
 ```bash
-docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40
+docker run --rm ... dm2d run-image /input/image.jp2 --ve_persistence_threshold 5 --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40 --mask true
+```
+
+*Override mask in a preset mode:*
+```bash
+docker run --rm ... dm2d run-image /input/image.jp2 --mode pmd --mask false
 ```
 
 ---

@@ -39,14 +39,14 @@ def load_models(model_dir):
 
 # Mode presets, matching the paper's stated values.
 MODE_PRESETS = {
-    'pmd': {'ve_persistence': 0, 'et_persistence': 64, 'min_size': 40, 'norm_factor': 16, 'likelihood_threshold': 40},
-    'stp': {'ve_persistence': 0, 'et_persistence': 32, 'min_size': 12, 'norm_factor': 256, 'likelihood_threshold': 40},
+    'pmd': {'ve_persistence': 0, 'et_persistence': 64, 'min_size': 40, 'norm_factor': 16, 'likelihood_threshold': 40, 'use_mask': True},
+    'stp': {'ve_persistence': 0, 'et_persistence': 32, 'min_size': 12, 'norm_factor': 256, 'likelihood_threshold': 40, 'use_mask': True},
 }
 
 
 def process_single_image(input_path, output_dir, models=None, output_name=None,
                          ve_persistence=0, et_persistence=0, min_size=0, norm_factor=16,
-                         likelihood_threshold=40):
+                         likelihood_threshold=40, use_mask=True):
     """Process a single image using the original pipeline script
 
     Args:
@@ -61,6 +61,7 @@ def process_single_image(input_path, output_dir, models=None, output_name=None,
         norm_factor: Normalization divisor for tile pixel values (PMD=16, STP=256)
         likelihood_threshold: Likelihood pixels below this are clipped to zero
                                before skeletonization (PMD=50, STP=60)
+        use_mask: Restrict processing to tissue via Otsu thresholding (default: True)
     """
     import pipeline_processDetect_skel_samik_singleChanel as original_pipeline
     import shutil
@@ -136,7 +137,8 @@ def process_single_image(input_path, output_dir, models=None, output_name=None,
             ve_persistence_threshold=ve_persistence,
             et_persistence_threshold=et_persistence,
             norm_factor=norm_factor,
-            likelihood_threshold=likelihood_threshold
+            likelihood_threshold=likelihood_threshold,
+            use_mask=use_mask
         )
         pipeline_success = True
     except Exception as e:
@@ -259,14 +261,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
-  pmd       ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16, likelihood_threshold=40
-  stp       ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256, likelihood_threshold=40
+  pmd       ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16, likelihood_threshold=40, mask=true
+  stp       ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256, likelihood_threshold=40, mask=true
   custom    Specify custom parameters
 
 Examples:
   %(prog)s --input image.jp2 --output out/ --mode pmd
   %(prog)s --input image.jp2 --output out/ --mode stp
-  %(prog)s --input image.jp2 --output out/ --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40
+  %(prog)s --input image.jp2 --output out/ --persistence_threshold 16 --min_size 30 --norm_factor 16 --likelihood_threshold 40 --mask true
   %(prog)s --input_dir images/ --output out/ --mode pmd
 """)
     parser.add_argument('--input', type=str, help='Single input image (JP2 or TIFF)')
@@ -287,6 +289,8 @@ Examples:
     parser.add_argument('--likelihood_threshold', type=int, default=None,
                         help='Likelihood pixels below this are clipped to zero before skeletonization '
                              '(required for custom mode, PMD=50, STP=60)')
+    parser.add_argument('--mask', type=str, default=None, choices=['true', 'false'],
+                        help='Restrict processing to tissue via Otsu thresholding (default: true for pmd/stp, required for custom)')
 
     args = parser.parse_args()
 
@@ -298,26 +302,31 @@ Examples:
         min_size = preset['min_size']
         norm_factor = preset['norm_factor']
         likelihood_threshold = preset['likelihood_threshold']
+        use_mask = preset['use_mask']
+        # Allow overriding mask even in preset modes
+        if args.mask is not None:
+            use_mask = (args.mask == 'true')
         # Warn if user also passed explicit values
         if any(v is not None for v in [args.ve_persistence_threshold, args.persistence_threshold, args.min_size, args.norm_factor, args.likelihood_threshold]):
             print(f"Warning: --mode {args.mode} overrides all parameter flags")
-        print(f"Using {args.mode.upper()} preset: ve_persistence={ve_persistence}, persistence_threshold={et_persistence}, min_size={min_size}, norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}")
+        print(f"Using {args.mode.upper()} preset: ve_persistence={ve_persistence}, persistence_threshold={et_persistence}, min_size={min_size}, norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}, mask={use_mask}")
     else:
-        # Custom mode: require et_persistence, min_size, norm_factor, likelihood_threshold; ve_persistence defaults to 0
-        if args.persistence_threshold is None or args.min_size is None or args.norm_factor is None or args.likelihood_threshold is None:
-            parser.error("--persistence_threshold, --min_size, --norm_factor, and --likelihood_threshold are required when using custom mode (default)")
+        # Custom mode: require et_persistence, min_size, norm_factor, likelihood_threshold, mask; ve_persistence defaults to 0
+        if args.persistence_threshold is None or args.min_size is None or args.norm_factor is None or args.likelihood_threshold is None or args.mask is None:
+            parser.error("--persistence_threshold, --min_size, --norm_factor, --likelihood_threshold, and --mask are required when using custom mode (default)")
         ve_persistence = args.ve_persistence_threshold if args.ve_persistence_threshold is not None else 0
         et_persistence = args.persistence_threshold
         min_size = args.min_size
         norm_factor = args.norm_factor
         likelihood_threshold = args.likelihood_threshold
-        print(f"Using custom parameters: ve_persistence={ve_persistence}, persistence_threshold={et_persistence}, min_size={min_size}, norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}")
+        use_mask = (args.mask == 'true')
+        print(f"Using custom parameters: ve_persistence={ve_persistence}, persistence_threshold={et_persistence}, min_size={min_size}, norm_factor={norm_factor}, likelihood_threshold={likelihood_threshold}, mask={use_mask}")
 
     if args.input:
         # Single image mode
         process_single_image(args.input, args.output, output_name=args.output_name,
                              ve_persistence=ve_persistence, et_persistence=et_persistence, min_size=min_size, norm_factor=norm_factor,
-                             likelihood_threshold=likelihood_threshold)
+                             likelihood_threshold=likelihood_threshold, use_mask=use_mask)
     elif args.input_dir:
         # Batch mode (output_name not used - each file gets name from its filename)
         if args.output_name:
@@ -331,7 +340,7 @@ Examples:
         for i, f in enumerate(sorted(files)):
             print(f"\n[{i+1}/{len(files)}]")
             process_single_image(f, args.output, ve_persistence=ve_persistence, et_persistence=et_persistence, min_size=min_size, norm_factor=norm_factor,
-                                 likelihood_threshold=likelihood_threshold)
+                                 likelihood_threshold=likelihood_threshold, use_mask=use_mask)
     else:
         print("Error: Must specify --input or --input_dir")
         sys.exit(1)
