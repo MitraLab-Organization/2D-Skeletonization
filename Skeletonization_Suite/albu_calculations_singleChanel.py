@@ -6,6 +6,19 @@ sys.path.append(morse_code)
 import albu_dingkang
 
 
+def tile_starts(dim, tile_size=512):
+    """Sliding-window tile start positions covering the full dimension --
+    must match pipeline_processDetect_skel_samik_singleChanel.tile_starts()
+    exactly, since callers rely on both producing the same sequence for the
+    same (width, height) so tile indices line up."""
+    starts = list(range(0, dim - tile_size + 1, tile_size))
+    if not starts:
+        return [0]
+    if starts[-1] + tile_size < dim:
+        starts.append(dim - tile_size)
+    return starts
+
+
 def albu_cal(width, height, total_tiles, tile, mask_image, models_albu, norm_factor=16):
     """
     Run ALBU prediction on tiles in batches.
@@ -33,14 +46,24 @@ def albu_cal(width, height, total_tiles, tile, mask_image, models_albu, norm_fac
     input_tile_idx = 0
     output_idx = 0
 
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
+    for row in tile_starts(width):
+        for column in tile_starts(height):
             if np.sum(mask_image[row:row+512, column:column+512]):
-                # Normalize and prepare tile (512, 512, 3)
+                # Normalize and prepare tile (512, 512, 3). current_tile_raw is
+                # (512, 512, C); only channel 0 is used, replicated across
+                # R,G,B (equivalent to albu_dingkang._8bitGray2Input). Per the
+                # paper's methods section, the manuscript's PMD/WSI results
+                # use only the tdTomato (red) channel from that injection --
+                # red and green are two separately injected tracers, not a
+                # single signal split across channels, so combining them
+                # isn't what was used to produce the reported results.
                 current_tile_raw = tile[input_tile_idx]
                 tile_container = np.zeros((512, 512, 3), dtype=np.uint8)
-                tile_container[:,:,0] = np.uint8(current_tile_raw // norm_factor)
-                
+                single = np.uint8(current_tile_raw[:, :, 0] // norm_factor)
+                tile_container[:, :, 0] = single
+                tile_container[:, :, 1] = single
+                tile_container[:, :, 2] = single
+
                 tiles_to_process.append(tile_container)
                 indices_to_map.append(output_idx)
                 

@@ -70,7 +70,13 @@
     # ============================================================
     COPY Baselines/neutube /app/Baselines/neutube
 
+    # Download neutube build dependencies (not stored in git repo)
     WORKDIR /app/Baselines/neutube/neurolabi/lib
+    RUN [ ! -f fftw-3.3.2.tar.gz ] && wget -q http://www.fftw.org/fftw-3.3.2.tar.gz || true \
+        && [ ! -f jansson-2.5.tar.gz ] && wget -q https://github.com/akheron/jansson/releases/download/v2.5/jansson-2.5.tar.gz || true \
+        && [ ! -f libxml2-2.9.1.tar.gz ] && wget -q https://download.gnome.org/sources/libxml2/2.9/libxml2-2.9.1.tar.xz -O libxml2-2.9.1.tar.xz && xz -d libxml2-2.9.1.tar.xz && mv libxml2-2.9.1.tar libxml2-2.9.1.tar.tmp && gzip < libxml2-2.9.1.tar.tmp > libxml2-2.9.1.tar.gz && rm libxml2-2.9.1.tar.tmp || true \
+        && [ ! -f hdf5-1.8.12.tar.gz ] && wget -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz || true \
+        && [ ! -f libpng-1.6.7.tar.gz ] && wget -q https://sourceforge.net/projects/libpng/files/libpng16/1.6.7/libpng-1.6.7.tar.gz/download -O libpng-1.6.7.tar.gz || true
     RUN ./build.sh
 
     WORKDIR /app/Baselines/neutube/neurolabi
@@ -125,12 +131,14 @@
         && cmake .. && make
 
     # DM++ morse_code binaries (for whole-image processing)
+    # The conda env ships OpenCV 5.x (opencv5.pc) with no pkg-config binary of its own,
+    # so PKG_CONFIG_PATH must point at its .pc file for the system pkg-config to find it.
     RUN g++ -O3 /app/Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/src/ComputeGraphReconstruction.cpp \
         -o /app/Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/src/a.out \
-        $(pkg-config --cflags --libs opencv4) || true
+        $(PKG_CONFIG_PATH=/opt/conda/envs/wholebrain/lib/pkgconfig pkg-config --cflags --libs opencv5)
 
     RUN g++ -O3 /app/Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/paths_src/ComputePaths.cpp \
-        -o /app/Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/paths_src/a.out || true
+        -o /app/Skeletonization_Suite/DM++/Semantic_Segmentation_NMI/morse_code/paths_src/a.out
 
     # ============================================================
     # Entrypoint

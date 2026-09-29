@@ -1,5 +1,3 @@
-dm_base='DM++/Semantic_Segmentation_NMI/DM_base'
-morse_code='DM++/Semantic_Segmentation_NMI/morse_code'
 dm2d_code='DM_2D_code'
 
 import shutil
@@ -10,32 +8,20 @@ import sys
 import numpy as np
 import cv2
 from PIL import Image
-import multiprocessing
 import math
 import time
 # import tifffile as tiff
-from functools import wraps
 import numpy as np
 import subprocess as sp
 import sys
 import time
 # from skimage.io import imsave, imread
 from albu_calculations_singleChanel import *
-from dmpp_calculations import *
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import Process, Manager
 from numba import cuda
 from DM2D_Pipeline_Tiled import *
 sys.path.append(dm2d_code)
 import DiMo2d as dm
-
-sys.path.append(dm_base)
-from createNetR import *
-
-sys.path.append(morse_code)
-import albu_dingkang
-import new_dm_mba
-import tsting_single_cal
 
 
 def mask(org_img):
@@ -87,34 +73,29 @@ def imwrite_fast(img_path, opImg):
     # Replaced kakadu with cv2
     cv2.imwrite(img_path, opImg)
 
-def unpack(func):
-    @wraps(func)
-    def wrapper(arg_tuple):
-        return func(*arg_tuple)
-    return wrapper
 
-@unpack
-def dm_fn(tile,id,temp_dir):
-    persistence_th=128
-    t_arr=np.asarray(tile)
-    t_arr_th = np.where(t_arr>5, 1, 0)
+def tile_starts(dim, tile_size=512):
+    """Sliding-window tile start positions covering the full dimension.
 
-    if np.sum(t_arr_th):
-        dm_op = new_dm_mba.dm_cal(tile,id,persistence_th,temp_dir)
-    else:
-        # print("xxxxxxxxxx-->",id)
-        dm_op=np.zeros_like(tile)
-    return dm_op
-
+    range(0, dim-tile_size+1, tile_size) alone silently drops any remainder
+    past the last full-size tile (e.g. for dim=1000, tile_size=512, only
+    start 0 is produced -- pixels 512-999 are never tiled at all). This adds
+    an edge-aligned final tile (which may overlap the previous one) so the
+    full image gets covered instead of just its first tile_size x tile_size
+    corner.
+    """
+    starts = list(range(0, dim - tile_size + 1, tile_size))
+    if not starts:
+        return [0]
+    if starts[-1] + tile_size < dim:
+        starts.append(dim - tile_size)
+    return starts
 
 # ========== Reading Image =========== #
-def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dmpp,temp_dir,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16):
-
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-    
-    if not os.path.exists(scratch_dir):
-        os.mkdir(scratch_dir)
+def compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=16, likelihood_threshold=40):
+    """Read a whole-section image, tile it, and run ALBU to produce a stitched
+    likelihood image. Saves it to {json_out_dir}/lkl/{brain_no}_{section_num}.jpg
+    and returns the array."""
 
     a=time.time()
     print("##----Reading image----##")
@@ -127,7 +108,6 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     width,height,channel=img.shape
     print(img.dtype)
     print(img.max())
-    # return removed
 
     # Getting mask
     # mask_image=mask(img[:,:,0])
@@ -142,57 +122,42 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     # ==================== Tiling ================= #
     print("------------  Tiling Started  ------------\n")
     a=time.time()
-    id = []
-    tile = []
-    temp_dir_list=[]
+    tile_all_channels = []
     count = 0
 
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
+    for row in tile_starts(width):
+        for column in tile_starts(height):
             if np.sum(mask_image[row:row+512,column:column+512]):
-                tile.append(img[row:row+512,column:column+512,0])
-                id.append(count)
+                # ALBU gets every real channel available (e.g. PMD's red+green+blue),
+                # not just channel 0 -- see albu_cal() for how this is populated.
+                tile_all_channels.append(img[row:row+512,column:column+512,:])
                 count = count + 1
-                temp_dir_list.append(temp_dir)
 
 
     total_tiles=count
     print("Total tiles: ",total_tiles)
     print("------------Tiling Completed------------")
 
-    # ============ dm ================= #
-    print("------------DM Started------------\n")
-
-    argList = zip(tile,id,temp_dir_list)
-    max_cpu=multiprocessing.cpu_count()
-    p = multiprocessing.Pool(max_cpu-5)
-    # p = multiprocessing.Pool(5)
-    dm_opL = p.map(dm_fn, iterable=argList)
-    p.close()
-    p.join()
-
-
-    b=time.time()
-    print("Time to execute DM: ",b-a," Seconds")
-
-    print("------------DM Completed------------")
-    shutil.rmtree(temp_dir)
-    # =============================== #
-            
     print("------------Starting  ------------")
     a=time.time()
-    albu_out=albu_cal(width,height,total_tiles,tile,mask_image,albu_models,norm_factor=norm_factor)
+    albu_out=albu_cal(width,height,total_tiles,tile_all_channels,mask_image,albu_models,norm_factor=norm_factor)
 
     ALBU_out=np.zeros((width,height),dtype=np.uint8)
     count=0
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
+    for row in tile_starts(width):
+        for column in tile_starts(height):
             if np.sum(mask_image[row:row+512,column:column+512]):
                 ALBU_out[row:row+512,column:column+512]=albu_out[:,:,count]
                 count = count + 1
-                
+
     likelihood_image = ALBU_out
-    # likelihood_image[likelihood_image<40] = 0
+    # ALBU's raw output is a smooth field where every pixel has some small
+    # positive value. Clipping low-confidence background to zero matches the
+    # reference likelihood tiles this pipeline is meant to reproduce, and the
+    # exact cutoff materially affects downstream precision/recall -- see
+    # test_dmnet_fusion_investigation/11_paper_reproduction_evaluation for
+    # the sweep this default (and the per-mode presets) were picked from.
+    likelihood_image[likelihood_image < likelihood_threshold] = 0
     lkl_path = f"{json_out_dir}/lkl/"
     if not os.path.exists(lkl_path):
         os.mkdir(lkl_path)
@@ -202,24 +167,29 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
     b=time.time()
     print("Time to execute : ",b-a," Seconds")
     print("------------Completed-------------")
-    
-    
-    #------------------DEBUG-----------------------------#
-    # return removed
-    #------------------DEBUG-----------------------------#
-    
+
+    return likelihood_image
+
+
+def skeletonize_likelihood(likelihood_image, json_out_dir, json_out_dir_temp, scratch_dir, brain_no, section_num, ve_persistence_threshold=0, et_persistence_threshold=0):
+    """Threshold a likelihood image and run DM2D to produce a skeleton JSON
+    ({json_out_dir}/{brain_no}_{section_num}.json) and a binary mask image
+    ({json_out_dir}/mask/{brain_no}_{section_num}.jpg). Returns the JSON path."""
+
+    if not os.path.exists(scratch_dir):
+        os.mkdir(scratch_dir)
+
+    width, height = likelihood_image.shape
 
     #------------------DM2D-----------------------------#
     print("-----------------DM2D Started----------------------")
     a=time.time()
     division_x=16
     division_y=16
-    
+
     _, likelihood_image_bin = cv2.threshold(likelihood_image, 20, 255, cv2.THRESH_BINARY)
 
     print(f"  VE persistence: {ve_persistence_threshold}, ET persistence: {et_persistence_threshold}")
-    bit_depth = 8 # bit depth of the input images (should be 8 or 16-bit)
-    background_pixel_val = 0 # background pixel values for real-world neuron fragments
 
     DM2D_Pipeline(likelihood_image,likelihood_image_bin,division_x,division_y,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_out_dir_temp,scratch_dir)
     # Use shutil.move instead of os.system to handle special characters in filenames (e.g., &)
@@ -239,7 +209,7 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
         os.mkdir(skel_bin_path)
     skel_bin_path_file =  f"{json_out_dir}/mask/{brain_no}_{section_num}.jpg"
 
-    
+
     with open(json_file_path) as f:
         gj = geojson.load(f)
 
@@ -252,11 +222,19 @@ def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,model_dm
         x2=gj['features'][i]['geometry']['coordinates'][1][0]
         y2=-gj['features'][i]['geometry']['coordinates'][1][1]
         cv2.line(background_image, (int(x1), int(y1)), (int(x2), int(y2)), 255, 1, lineType=cv2.LINE_AA)
-    
+
     cv2.imwrite(skel_bin_path_file, background_image)
     print(">>>>> Saved Binary files: ",f"{skel_bin_path_file}")
 
     shutil.rmtree(scratch_dir)
+
+    return json_file_path
+
+
+def main(input_image_path,json_out_dir,brain_no,section_num,albu_models,scratch_dir,json_out_dir_temp,ve_persistence_threshold=0,et_persistence_threshold=0,norm_factor=16,likelihood_threshold=40):
+    likelihood_image = compute_likelihood(input_image_path, json_out_dir, brain_no, section_num, albu_models, norm_factor=norm_factor, likelihood_threshold=likelihood_threshold)
+    return skeletonize_likelihood(likelihood_image, json_out_dir, json_out_dir_temp, scratch_dir, brain_no, section_num, ve_persistence_threshold=ve_persistence_threshold, et_persistence_threshold=et_persistence_threshold)
+
 
 if __name__ == '__main__':
     main()

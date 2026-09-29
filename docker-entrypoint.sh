@@ -186,13 +186,13 @@ case "$COMMAND" in
         ;;
     
     # ================================================================
-    # WHOLE-IMAGE PROCESSING (NEW - uses DM++ neural network)
+    # WHOLE-IMAGE PROCESSING (ALBU neural network)
     # ================================================================
     run-image)
         INPUT_FILE="${ARG2}"
         if [ -z "$INPUT_FILE" ]; then
             echo "Error: No input file specified"
-            echo "Usage: run-image <path/to/image.jp2> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--output <name>]"
+            echo "Usage: run-image <path/to/image.jp2> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N] [--output <name>]"
             exit 1
         fi
         
@@ -233,6 +233,11 @@ case "$COMMAND" in
                     echo "Norm factor: $2"
                     shift 2
                     ;;
+                --likelihood_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --likelihood_threshold $2"
+                    echo "Likelihood threshold: $2"
+                    shift 2
+                    ;;
                 --output)
                     EXTRA_ARGS="$EXTRA_ARGS --output_name $2"
                     echo "Output name: $2"
@@ -244,7 +249,7 @@ case "$COMMAND" in
                     ;;
             esac
         done
-        
+
         python /app/Skeletonization_Suite/run_whole_image.py \
             --input "$INPUT_FILE" \
             --output "$OUTPUT_DIR/whole_image" \
@@ -262,7 +267,7 @@ case "$COMMAND" in
         INPUT_DIR="${ARG2}"
         if [ -z "$INPUT_DIR" ]; then
             echo "Error: No input directory specified"
-            echo "Usage: run-folder <path/to/images/> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N]"
+            echo "Usage: run-folder <path/to/images/> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--norm_factor N] [--likelihood_threshold N]"
             exit 1
         fi
         
@@ -303,13 +308,18 @@ case "$COMMAND" in
                     echo "Norm factor: $2"
                     shift 2
                     ;;
+                --likelihood_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --likelihood_threshold $2"
+                    echo "Likelihood threshold: $2"
+                    shift 2
+                    ;;
                 *)
                     echo "Warning: Unknown argument '$1' ignored"
                     shift
                     ;;
             esac
         done
-        
+
         python /app/Skeletonization_Suite/run_whole_image.py \
             --input_dir "$INPUT_DIR" \
             --output "$OUTPUT_DIR/whole_image" \
@@ -317,12 +327,143 @@ case "$COMMAND" in
         
         echo ""
         echo "Batch processing complete! Results: $OUTPUT_DIR/whole_image/"
-        
+
         # Fix permissions
         echo "Fixing permissions..."
         chmod -R 777 "$OUTPUT_DIR" 2>/dev/null || true
         ;;
-    
+
+    # ================================================================
+    # ENTRY POINT 2: IMAGE -> LIKELIHOOD ONLY
+    # ================================================================
+    image-to-likelihood)
+        INPUT_FILE="${ARG2}"
+        if [ -z "$INPUT_FILE" ]; then
+            echo "Error: No input file specified"
+            echo "Usage: image-to-likelihood <path/to/image.jp2> [--mode pmd|stp|custom] [--norm_factor N] [--likelihood_threshold N] [--output <name>]"
+            exit 1
+        fi
+
+        echo "========================================================"
+        echo "  IMAGE -> LIKELIHOOD"
+        echo "========================================================"
+        echo "Input: $INPUT_FILE"
+
+        cd /app/Skeletonization_Suite
+
+        # Collect all remaining args after command and input file
+        shift 2  # Remove command and input file
+        EXTRA_ARGS=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --mode)
+                    EXTRA_ARGS="$EXTRA_ARGS --mode $2"
+                    echo "Mode: $2"
+                    shift 2
+                    ;;
+                --norm_factor)
+                    EXTRA_ARGS="$EXTRA_ARGS --norm_factor $2"
+                    echo "Norm factor: $2"
+                    shift 2
+                    ;;
+                --likelihood_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --likelihood_threshold $2"
+                    echo "Likelihood threshold: $2"
+                    shift 2
+                    ;;
+                --output)
+                    EXTRA_ARGS="$EXTRA_ARGS --output_name $2"
+                    echo "Output name: $2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Warning: Unknown argument '$1' ignored"
+                    shift
+                    ;;
+            esac
+        done
+
+        python /app/Skeletonization_Suite/run_image_to_likelihood.py \
+            --input "$INPUT_FILE" \
+            --output "$OUTPUT_DIR/likelihood" \
+            $EXTRA_ARGS
+
+        echo ""
+        echo "Processing complete! Results: $OUTPUT_DIR/likelihood/"
+
+        # Fix permissions
+        echo "Fixing permissions..."
+        chmod -R 777 "$OUTPUT_DIR" 2>/dev/null || true
+        ;;
+
+    # ================================================================
+    # ENTRY POINT 3: LIKELIHOOD -> SKELETON ONLY
+    # ================================================================
+    likelihood-to-skeleton)
+        INPUT_FILE="${ARG2}"
+        if [ -z "$INPUT_FILE" ]; then
+            echo "Error: No input file specified"
+            echo "Usage: likelihood-to-skeleton <path/to/likelihood.jpg> [--mode pmd|stp|custom] [--ve_persistence_threshold N] [--persistence_threshold N] [--min_size N] [--output <name>]"
+            exit 1
+        fi
+
+        echo "========================================================"
+        echo "  LIKELIHOOD -> SKELETON"
+        echo "========================================================"
+        echo "Input: $INPUT_FILE"
+
+        cd /app/Skeletonization_Suite
+
+        # Collect all remaining args after command and input file
+        shift 2  # Remove command and input file
+        EXTRA_ARGS=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --mode)
+                    EXTRA_ARGS="$EXTRA_ARGS --mode $2"
+                    echo "Mode: $2"
+                    shift 2
+                    ;;
+                --ve_persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --ve_persistence_threshold $2"
+                    echo "VE Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --persistence_threshold)
+                    EXTRA_ARGS="$EXTRA_ARGS --persistence_threshold $2"
+                    echo "Persistence threshold: $2"
+                    shift 2
+                    ;;
+                --min_size)
+                    EXTRA_ARGS="$EXTRA_ARGS --min_size $2"
+                    echo "Min size: $2"
+                    shift 2
+                    ;;
+                --output)
+                    EXTRA_ARGS="$EXTRA_ARGS --output_name $2"
+                    echo "Output name: $2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Warning: Unknown argument '$1' ignored"
+                    shift
+                    ;;
+            esac
+        done
+
+        python /app/Skeletonization_Suite/run_likelihood_to_skeleton.py \
+            --input "$INPUT_FILE" \
+            --output "$OUTPUT_DIR/skeleton" \
+            $EXTRA_ARGS
+
+        echo ""
+        echo "Processing complete! Results: $OUTPUT_DIR/skeleton/"
+
+        # Fix permissions
+        echo "Fixing permissions..."
+        chmod -R 777 "$OUTPUT_DIR" 2>/dev/null || true
+        ;;
+
     # ================================================================
     # INDIVIDUAL STEPS
     # ================================================================
@@ -352,8 +493,8 @@ case "$COMMAND" in
         echo "  paper              Full paper reproduction (both datasets + sweeps + plots)"
         echo "  demo <pmd|stp>     Quick demo on one dataset (no sweeps)"
         echo ""
-        echo "WHOLE-IMAGE PROCESSING:"
-        echo "  run-image <file> [options]     Process single JP2/TIFF through DM++ pipeline"
+        echo "WHOLE-IMAGE PROCESSING (Entry Point 1: image -> skeleton):"
+        echo "  run-image <file> [options]     Process single JP2/TIFF through ALBU inference"
         echo "  run-folder <dir> [options]     Process all images in a folder"
         echo ""
         echo "  Options for run-image / run-folder:"
@@ -362,11 +503,25 @@ case "$COMMAND" in
         echo "    --persistence_threshold <N>          ET persistence threshold (required for custom)"
         echo "    --min_size <N>                       Min component size (required for custom)"
         echo "    --norm_factor <N>                    Pixel normalization divisor (required for custom)"
+        echo "    --likelihood_threshold <N>           Likelihood background clip-to-zero cutoff (required for custom)"
         echo "    --output <name>                      Custom output name (run-image only)"
         echo ""
         echo "  Presets:"
-        echo "    pmd:  ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16"
-        echo "    stp:  ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256"
+        echo "    pmd:  ve_persistence=0, persistence_threshold=64, min_size=40, norm_factor=16, likelihood_threshold=40"
+        echo "    stp:  ve_persistence=0, persistence_threshold=32, min_size=12, norm_factor=256, likelihood_threshold=40"
+        echo ""
+        echo "STAGED PROCESSING (split image -> skeleton into two steps):"
+        echo "  image-to-likelihood <file> [options]     Entry Point 2: image -> likelihood only"
+        echo "                                            (ALBU inference + background threshold)"
+        echo "    Options: --mode, --norm_factor, --likelihood_threshold, --output"
+        echo ""
+        echo "  likelihood-to-skeleton <file> [options]  Entry Point 3: likelihood -> skeleton only"
+        echo "                                            (no raw image or neural network needed)"
+        echo "    Options: --mode, --ve_persistence_threshold, --persistence_threshold, --min_size, --output"
+        echo ""
+        echo "  Chaining these two reproduces run-image's output:"
+        echo "    dm2d image-to-likelihood /input.jp2 --mode pmd --output MyBrain_001"
+        echo "    dm2d likelihood-to-skeleton /outputs/likelihood/lkl/MyBrain_001_0.jpg --mode pmd --output MyBrain_001"
         echo ""
         echo "INDIVIDUAL STEPS:"
         echo "  inference <dataset>   Run inference only"

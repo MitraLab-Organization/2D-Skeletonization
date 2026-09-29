@@ -142,11 +142,8 @@ def dmnet(pretrained_weights=None, input_size=(512, 512, 1)):
     op = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(z)
     print(op)
 
-    model = Model(inputs=[inputA, inputDM], output=op)
-    adam = Adam(lr=0.0001, decay=1e-5)
-    adagrad = Adagrad(lr=0.001,decay=1e-4)
-    adadelta = Adadelta(lr=0.001,decay=1e-4)
-    sgd = SGD(lr=0.001,decay=1e-4)
+    model = Model(inputs=[inputA, inputDM], outputs=op)
+    adam = Adam(learning_rate=0.0001)
     model.compile(optimizer=adam, loss=comb_loss)
 
     # model.summary()

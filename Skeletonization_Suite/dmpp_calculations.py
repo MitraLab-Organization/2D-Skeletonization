@@ -13,7 +13,17 @@ sys.path.append(morse_code)
 import tsting_single_cal
 
 
-
+def tile_starts(dim, tile_size=512):
+    """Sliding-window tile start positions covering the full dimension --
+    must match pipeline_processDetect_skel_samik_singleChanel.tile_starts()
+    exactly, since callers rely on both producing the same sequence for the
+    same (width, height) so tile indices line up."""
+    starts = list(range(0, dim - tile_size + 1, tile_size))
+    if not starts:
+        return [0]
+    if starts[-1] + tile_size < dim:
+        starts.append(dim - tile_size)
+    return starts
 
 
 def bytescale(data, cmin=None, cmax=None, high=255, low=0):
@@ -233,8 +243,8 @@ def dmpp_cal(width,height, albu_out, dm_opL, mask_image, gpu_device,model):
 
     dm_out=np.zeros((width,height),dtype=np.uint8)
     
-    for row in range(0, width-511, 512):
-        for column in range(0, height-511, 512):
+    for row in tile_starts(width):
+        for column in tile_starts(height):
             if np.sum(mask_image[row:row+512, column:column+512]):
                 dm_op = toimage(dm_opL[count], cmin=0.0, cmax=1.0)
                 dm_op = np.asarray(dm_op)

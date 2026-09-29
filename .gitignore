@@ -39,3 +39,22 @@ Thumbs.db
 
 # Docker build cache
 .docker/
+
+# Neutube build outputs (Dockerfile downloads tarballs and builds from source)
+# Keep: source code (*.c, *.h, *.cpp, build scripts)
+# Exclude: downloaded tarballs, extracted dirs, compiled artifacts
+Baselines/neutube/neurolabi/lib/*.tar
+Baselines/neutube/neurolabi/lib/*.tar.gz
+Baselines/neutube/neurolabi/lib/fftw3/
+Baselines/neutube/neurolabi/lib/fftw-3.3.2/
+Baselines/neutube/neurolabi/lib/hdf5/
+Baselines/neutube/neurolabi/lib/hdf5-1.8.12/
+Baselines/neutube/neurolabi/lib/jansson/
+Baselines/neutube/neurolabi/lib/jansson-2.5/
+Baselines/neutube/neurolabi/lib/xml/
+Baselines/neutube/neurolabi/lib/libxml2-2.9.1/
+Baselines/neutube/neurolabi/lib/png/
+Baselines/neutube/neurolabi/c/lib/
+Baselines/neutube/neurolabi/cpp/lib/build/
+Baselines/neutube/neurolabi/python/module/_neutube.so
+Baselines/neutube/neurolabi/python/module/*.o

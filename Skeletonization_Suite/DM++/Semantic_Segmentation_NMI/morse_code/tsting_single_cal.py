@@ -7,6 +7,7 @@ def testImages(img, dm, model):
     img = img.astype('float32')
     dm = dm.astype('float32')
     img = img / 255.
+    dm = dm / 255.
     # if np.sum(dm):
     #     print("albu input: ",img.min(), img.max())
     #     print("dm input after: ",np.min(dm),np.max(dm))
