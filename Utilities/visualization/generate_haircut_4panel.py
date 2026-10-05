@@ -287,6 +287,7 @@ def generate_figure(images, circles):
 
 
 def main():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     cache = load_cache()
     
     # Load both image pairs

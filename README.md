@@ -35,6 +35,15 @@ Results will be organized in `outputs/`:
 | `outputs/tables/` | CSV files containing quantitative metrics (Precision, Recall, F1). |
 | `outputs/pmd/dm2d/` | Raw skeleton files for the PMD dataset. |
 | `outputs/pmd/dm2d_evaluation/` | Detailed evaluation logs. |
+| `outputs/haircut_comparison_plots/` | Haircut ablation figure (Supplementary S.2.2). |
+
+The Haircut ablation can also be run on its own. It runs DM2D on the PMD tiles twice, with and without the Haircut pruning step, and builds the side-by-side figure:
+
+```bash
+docker run --rm -v $(pwd)/outputs:/outputs samikbanerjee69/dm_full_pipeline_docker_cshl:latest haircut-ablation
+```
+
+Outside Docker, pass `--no_haircut` to `run_dm2d_tiles.py` to skip the pruning step.
 
 ---
 

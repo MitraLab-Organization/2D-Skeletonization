@@ -38,7 +38,7 @@ sys.path.insert(0, dm2d_code_path)
 from DM2D_Pipeline_Tiled import DM2D_Pipeline
 
 
-def run_dm2d_on_tile(lkl_path, output_dir, tile_name, ve_persistence=0, et_persistence=0):
+def run_dm2d_on_tile(lkl_path, output_dir, tile_name, ve_persistence=0, et_persistence=0, apply_haircut=True):
     """Run DM2D on a single LKL tile"""
     
     # Read LKL tile
@@ -75,7 +75,7 @@ def run_dm2d_on_tile(lkl_path, output_dir, tile_name, ve_persistence=0, et_persi
     # Run DM2D
     DM2D_Pipeline(lkl, lkl_bin, division_x, division_y,
                   ve_persistence_threshold, et_persistence_threshold,
-                  json_dir, json_temp_dir, scratch_dir)
+                  json_dir, json_temp_dir, scratch_dir, apply_haircut)
     
     # Rename output
     merged_json = os.path.join(json_dir, "merged_geojson.json")
@@ -131,6 +131,8 @@ def main():
                         help='ET persistence threshold (default: 0)')
     parser.add_argument('--min_size', type=int, default=0,
                         help='Minimum connected component size (default: 0, no filtering)')
+    parser.add_argument('--no_haircut', action='store_true',
+                        help='Skip the Haircut side-branch pruning step (for the Haircut ablation)')
     
     args = parser.parse_args()
     
@@ -149,6 +151,7 @@ def main():
     print(f"Processing {len(lkl_files)} LKL tiles...")
     print(f"  VE persistence threshold: {args.ve_persistence}")
     print(f"  ET persistence threshold: {args.et_persistence}")
+    print(f"  Haircut: {'off' if args.no_haircut else 'on'}")
     
     for idx, lkl_file in enumerate(lkl_files):
         tile_name = lkl_file.stem
@@ -157,7 +160,8 @@ def main():
         # Run DM2D
         json_path = run_dm2d_on_tile(str(lkl_file), json_dir, tile_name, 
                                       ve_persistence=args.ve_persistence,
-                                      et_persistence=args.et_persistence)
+                                      et_persistence=args.et_persistence,
+                                      apply_haircut=not args.no_haircut)
         
         if json_path and os.path.exists(json_path):
             # Read tile dimensions

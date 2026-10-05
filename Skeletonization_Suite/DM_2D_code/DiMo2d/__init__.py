@@ -450,7 +450,7 @@ def non_degree_2_paths(no_dup_crossed_edge, dimo_vert,scratch_dir,ve_persistence
     return paths
 
 
-def haircut(dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold):
+def haircut(dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold, apply_haircut=True):
     verts_lines=dimo_vert.split("\n")
 
     verts=[]
@@ -523,8 +523,8 @@ def haircut(dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold):
         first_degree = degrees[p[0]]
         second_degree = degrees[p[len(p) - 1]]
 
-            # haircut
-        if delta <= 1 and (first_degree == 1 or second_degree == 1) and (first_degree > 2 or second_degree > 2):
+            # haircut (apply_haircut=False keeps every path, for the Supplementary S.2.2 comparison)
+        if apply_haircut and delta <= 1 and (first_degree == 1 or second_degree == 1) and (first_degree > 2 or second_degree > 2):
             continue
   
         for j in range(len(p) - 1):
@@ -535,10 +535,10 @@ def haircut(dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold):
     return haircut_edge
 
 
-def postprocess_graphs(no_dup_crossed_edge, uncropped_dimo_vert,scratch_dir,ve_persistence_threshold=0, et_persistence_threshold=64):
+def postprocess_graphs(no_dup_crossed_edge, uncropped_dimo_vert,scratch_dir,ve_persistence_threshold=0, et_persistence_threshold=64, apply_haircut=True):
     paths=non_degree_2_paths(no_dup_crossed_edge, uncropped_dimo_vert,scratch_dir,ve_persistence_threshold, et_persistence_threshold)
     # paths=non_degree_2_paths(no_dup_crossed_edge, dimo_vert,scratch_dir,ve_persistence_threshold, et_persistence_threshold)
-    haircut_edge=haircut(uncropped_dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold)
+    haircut_edge=haircut(uncropped_dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold, apply_haircut)
     return paths,haircut_edge
 
 

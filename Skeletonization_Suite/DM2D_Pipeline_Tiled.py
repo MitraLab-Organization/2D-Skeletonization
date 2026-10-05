@@ -20,7 +20,7 @@ def unpack(func):
     return wrapper
 
 @unpack   # Comment when not using multiprocessing
-def dm2d_cal(input_image, binary_image, ve_persistence_threshold, et_persistence_threshold, json_out_dir, json_filename, scratch_root):
+def dm2d_cal(input_image, binary_image, ve_persistence_threshold, et_persistence_threshold, json_out_dir, json_filename, scratch_root, apply_haircut=True):
 
     # Use passed scratch directory
     if not os.path.exists(scratch_root):
@@ -34,13 +34,13 @@ def dm2d_cal(input_image, binary_image, ve_persistence_threshold, et_persistence
 
     [dimo_vert,dimo_edge,uncropped_dimo_vert,no_dup_crossed_edge]=dm.generate_morse_graphs(dipha_edges_txt,vert_txt,crop_coordinates,binary_image,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
     # [dimo_vert,dimo_edge,uncropped_dimo_vert,crossed_vert, crossed_edge,no_dup_crossed_edge]=dm.generate_morse_graphs(dipha_edges_txt,vert_txt,crop_coordinates,binary_image,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
-    [paths,haircut_edge]=dm.postprocess_graphs(no_dup_crossed_edge,uncropped_dimo_vert,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
+    [paths,haircut_edge]=dm.postprocess_graphs(no_dup_crossed_edge,uncropped_dimo_vert,scratch_dir,ve_persistence_threshold,et_persistence_threshold,apply_haircut)
 
     dm.cshl_post_results(uncropped_dimo_vert,haircut_edge,json_out_dir,json_filename,ve_persistence_threshold,et_persistence_threshold)
 
     shutil.rmtree(scratch_dir)
 
-def dm2d_cal_noMP(input_image,binary_image,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_filename):
+def dm2d_cal_noMP(input_image,binary_image,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_filename,apply_haircut=True):
 
     scratch_root = os.path.join(os.path.dirname(json_out_dir), "scratch_1")
     if not os.path.exists(scratch_root):
@@ -53,7 +53,7 @@ def dm2d_cal_noMP(input_image,binary_image,ve_persistence_threshold,et_persisten
     [input_image_crop,crop_coordinates,dipha_input,dipha_thresh_edges,dipha_edges_txt,vert_txt]=dm.compute_persistence_single_channel(input_image,scratch_dir)
 
     [dimo_vert,dimo_edge,uncropped_dimo_vert,no_dup_crossed_edge]=dm.generate_morse_graphs(dipha_edges_txt,vert_txt,crop_coordinates,binary_image,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
-    [paths,haircut_edge]=dm.postprocess_graphs(no_dup_crossed_edge,uncropped_dimo_vert,scratch_dir,ve_persistence_threshold,et_persistence_threshold)
+    [paths,haircut_edge]=dm.postprocess_graphs(no_dup_crossed_edge,uncropped_dimo_vert,scratch_dir,ve_persistence_threshold,et_persistence_threshold,apply_haircut)
 
     dm.cshl_post_results(uncropped_dimo_vert,haircut_edge,json_out_dir,json_filename,ve_persistence_threshold,et_persistence_threshold)
 
@@ -101,7 +101,7 @@ def merge_json(json_dir, json_dir_temp, x, y, division_x, division_y):
     print("Merged JSON file: ",json_out_file)
     shutil.rmtree(json_dir_temp)
 
-def DM2D_Pipeline(input_image,binary_image,division_x,division_y,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_out_dir_temp,scratch_dir):
+def DM2D_Pipeline(input_image,binary_image,division_x,division_y,ve_persistence_threshold,et_persistence_threshold,json_out_dir,json_out_dir_temp,scratch_dir,apply_haircut=True):
 
     print(input_image.shape)
     y,x=input_image.shape
@@ -122,6 +122,7 @@ def DM2D_Pipeline(input_image,binary_image,division_x,division_y,ve_persistence_
     json_dir_list=[]
     count_list=[]
     scratch_dir_list=[] # New list for scratch dir
+    haircut_list=[]
     count = 0
 
     for h in range(0, tile_size_y*division_y, tile_size_y):
@@ -135,10 +136,11 @@ def DM2D_Pipeline(input_image,binary_image,division_x,division_y,ve_persistence_
                 json_dir_list.append(json_out_dir_temp)
                 count_list.append(str(count))
                 scratch_dir_list.append(scratch_dir) # Add to list
+                haircut_list.append(apply_haircut)
                 # print("Tile no: ",count)
             count=count+1             
 
-    argList = zip(tiles,binary_tiles,ve_pers_thrs,et_pers_thrs,json_dir_list,count_list,scratch_dir_list)
+    argList = zip(tiles,binary_tiles,ve_pers_thrs,et_pers_thrs,json_dir_list,count_list,scratch_dir_list,haircut_list)
     max_cpu=multiprocessing.cpu_count()
     p = multiprocessing.Pool(max_cpu-5)
     p.map(dm2d_cal, iterable=argList)

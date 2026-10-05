@@ -112,6 +112,31 @@ run_sweep() {
     fi
 }
 
+# Haircut ablation (Supplementary S.2.2): DM2D on the PMD tiles with and without
+# Haircut pruning, then the with/without comparison figure
+run_haircut_ablation() {
+    get_dataset_params pmd
+    echo "=== Haircut ablation (PMD) ==="
+
+    cd /app/Skeletonization_Suite
+    for variant in haircut no_haircut; do
+        echo "--- $variant ---"
+        local extra=""
+        if [ "$variant" = "no_haircut" ]; then
+            extra="--no_haircut"
+        fi
+        python /app/Skeletonization_Suite/run_dm2d_tiles.py \
+            --lkl_dir "$DATA_DIR/pmd/lkl" \
+            --output_dir "$OUTPUT_DIR/haircut_ablation/$variant" \
+            --ve_persistence 0 --et_persistence $DM2D_ET_PERSISTENCE \
+            --min_size $DM2D_MIN_SIZE $extra
+        mkdir -p "$OUTPUT_DIR/${variant}_skeletons"
+        cp "$OUTPUT_DIR/haircut_ablation/$variant/skeleton"/*.tif "$OUTPUT_DIR/${variant}_skeletons/"
+    done
+
+    python /app/Utilities/visualization/generate_haircut_4panel.py --regen
+}
+
 # Generate all plots
 run_plots() {
     echo "=== Generating plots ==="
@@ -145,6 +170,10 @@ case "$COMMAND" in
         run_inference stp
         run_evaluation stp
         run_sweep stp
+
+        # Haircut ablation
+        echo ""
+        run_haircut_ablation
         
         # Plots
         echo ""
@@ -158,6 +187,7 @@ case "$COMMAND" in
         echo "- figures/: Comparison plots"
         echo "- tables/: CSV result tables"
         echo "- */dm2d_persistence_sweep/: Sweep results"
+        echo "- haircut_comparison_plots/: Haircut ablation figure"
         
         # Fix permissions
         echo "Fixing permissions..."
@@ -495,6 +525,10 @@ case "$COMMAND" in
     plots)
         run_plots
         ;;
+
+    haircut-ablation)
+        run_haircut_ablation
+        ;;
     
     # ================================================================
     # HELP
@@ -507,6 +541,7 @@ case "$COMMAND" in
         echo "PAPER REPRODUCTION (Tiled Evaluation):"
         echo "  paper              Full paper reproduction (both datasets + sweeps + plots)"
         echo "  demo <pmd|stp>     Quick demo on one dataset (no sweeps)"
+        echo "  haircut-ablation   With/without Haircut comparison figure (Supplementary S.2.2)"
         echo ""
         echo "WHOLE-IMAGE PROCESSING (Entry Point 1: image -> skeleton):"
         echo "  run-image <file> [options]     Process single JP2/TIFF through ALBU inference"
