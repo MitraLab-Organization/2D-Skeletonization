@@ -6,6 +6,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Embed fonts as TrueType so text in the PDF output stays editable
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+
 # Base paths - derive from script location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))  # Up to WholeBrainProject
@@ -55,6 +59,7 @@ def create_bar_plot(df, title, output_path):
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.splitext(output_path)[0] + '.pdf', dpi=300, bbox_inches='tight')
     print(f"Saved: {output_path}")
     plt.close()
     return True

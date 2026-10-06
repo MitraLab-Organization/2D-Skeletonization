@@ -26,6 +26,14 @@ import json
 import sys
 import tifffile
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'visualization'))
+from scale_bar import UM_PER_PX, add_scale_bar
+
+# Embed fonts as TrueType so text in the PDF output stays editable
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+
 # Base paths - derive from script location
 import os
 SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -35,7 +43,7 @@ BASE_DIR = SCRIPT_DIR.parent.parent  # Up to WholeBrainProject
 PMD_CONFIG = {
     'img_dir': BASE_DIR / 'data' / 'pmd' / 'img',
     'gt_dir': BASE_DIR / 'data' / 'pmd' / 'GT',
-    'sweep_dir': BASE_DIR / 'outputs' / 'ablation' / 'final_dm2d_output_pmd_min_size_sweep_persistence64',
+    'sweep_dir': BASE_DIR / 'outputs' / 'pmd' / 'dm2d_min_size_sweep',
     'min_size_optimal': 40,
     'output_dir': BASE_DIR / 'outputs' / 'ablation' / 'minsize_ablation_PMD',
     'image_a': 'PMD1211_115_8201_17701',
@@ -51,7 +59,7 @@ PMD_CONFIG = {
 STP_CONFIG = {
     'img_dir': BASE_DIR / 'data' / 'stp' / 'img',
     'gt_dir': BASE_DIR / 'data' / 'stp' / 'GT',
-    'sweep_dir': BASE_DIR / 'outputs' / 'ablation' / 'final_dm2d_output_stp_min_size_sweep_persistence32',
+    'sweep_dir': BASE_DIR / 'outputs' / 'stp' / 'dm2d_min_size_sweep',
     'min_size_optimal': 12,
     'output_dir': BASE_DIR / 'outputs' / 'ablation' / 'minsize_ablation_STP',
     'image_a': '190322_74_2301_5401',
@@ -150,7 +158,7 @@ class MinSizeAblationTool:
         self.config = config
         self.dataset_name = dataset_name
         self.output_dir = config['output_dir']
-        self.output_dir.mkdir(exist_ok=True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.cache = config.get('crops', {})  # Use hardcoded crops from config
         self.cache_file = self.output_dir / 'crop_cache.json'  # For saving/loading
         
@@ -399,10 +407,12 @@ class MinSizeAblationTool:
             fig, axes = plt.subplots(1, 2, figsize=(8, 4))
             
             axes[0].imshow(overlay_no_filter)
+            add_scale_bar(axes[0], overlay_no_filter.shape[1], overlay_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
             axes[0].set_title('Without Filtering', fontsize=12, fontweight='bold')
             axes[0].axis('off')
             
             axes[1].imshow(overlay_filtered)
+            add_scale_bar(axes[1], overlay_filtered.shape[1], overlay_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
             axes[1].set_title('With Filtering', fontsize=12, fontweight='bold')
             axes[1].axis('off')
             
@@ -410,6 +420,8 @@ class MinSizeAblationTool:
             
             output_path = self.output_dir / f'{self.dataset_name}_{image_name}_ablation.png'
             plt.savefig(output_path, dpi=200, bbox_inches='tight', pad_inches=0.05,
+                        facecolor='white', edgecolor='none')
+            plt.savefig(output_path.with_suffix('.pdf'), dpi=200, bbox_inches='tight', pad_inches=0.05,
                         facecolor='white', edgecolor='none')
             plt.close()
             
@@ -461,6 +473,7 @@ class MinSizeAblationTool:
         
         # (a) - Without Size Filtering
         axes[0].imshow(a_no_filter)
+        bar_um = add_scale_bar(axes[0], a_no_filter.shape[1], a_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
         axes[0].set_title('Without Size Filtering', fontsize=12, fontweight='bold')
         axes[0].axis('off')
         axes[0].text(0.02, 0.98, '(a)', transform=axes[0].transAxes, fontsize=14, 
@@ -469,11 +482,13 @@ class MinSizeAblationTool:
         
         # (a) - With Size Filtering
         axes[1].imshow(a_filtered)
+        bar_um = add_scale_bar(axes[1], a_filtered.shape[1], a_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
         axes[1].set_title('With Size Filtering', fontsize=12, fontweight='bold')
         axes[1].axis('off')
         
         # (b) - Without Size Filtering
         axes[2].imshow(b_no_filter)
+        bar_um = add_scale_bar(axes[2], b_no_filter.shape[1], b_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
         axes[2].set_title('Without Size Filtering', fontsize=12, fontweight='bold')
         axes[2].axis('off')
         axes[2].text(0.02, 0.98, '(b)', transform=axes[2].transAxes, fontsize=14, 
@@ -482,6 +497,7 @@ class MinSizeAblationTool:
         
         # (b) - With Size Filtering
         axes[3].imshow(b_filtered)
+        bar_um = add_scale_bar(axes[3], b_filtered.shape[1], b_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
         axes[3].set_title('With Size Filtering', fontsize=12, fontweight='bold')
         axes[3].axis('off')
         
@@ -500,9 +516,11 @@ class MinSizeAblationTool:
         fig.patch.set_linewidth(2)
         
         plt.savefig(output_path, dpi=300, facecolor='white', edgecolor='black')
+        plt.savefig(output_path.with_suffix('.pdf'), dpi=300, facecolor='white', edgecolor='black')
         plt.close()
         
         print(f"✓ Saved: {output_path}")
+        print(f"Scale bars: {bar_um} um ({UM_PER_PX[self.dataset_name]} um/pixel)")
 
 
 def main():

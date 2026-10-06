@@ -110,6 +110,11 @@ run_sweep() {
     else
         bash /app/Utilities/ablation/docker_persistence_sweep_stp.sh
     fi
+
+    echo "=== Min-size sweep on $DATASET ==="
+    bash "/app/Utilities/ablation/final_run_dm2d_${DATASET}_min_size_sweep.sh"
+    python /app/Utilities/ablation/generate_minsize_ablation.py "$DATASET" --regen
+    python /app/Utilities/ablation/generate_minsize_ablation.py "$DATASET" --4panel
 }
 
 # Haircut ablation (Supplementary S.2.2): DM2D on the PMD tiles with and without
@@ -186,7 +191,8 @@ case "$COMMAND" in
         echo "Results: $OUTPUT_DIR/"
         echo "- figures/: Comparison plots"
         echo "- tables/: CSV result tables"
-        echo "- */dm2d_persistence_sweep/: Sweep results"
+        echo "- */dm2d_persistence_sweep/, */dm2d_min_size_sweep/: Sweep results"
+        echo "- ablation/: Min-size ablation figures"
         echo "- haircut_comparison_plots/: Haircut ablation figure"
         
         # Fix permissions

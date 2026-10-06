@@ -17,8 +17,8 @@ MIN_SIZE=40
 # Script and executable paths
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-DM2D_DIR="${PROJECT_DIR}/DM2D_Skeletonization_Vectorization"
-EVAL_SCRIPT="${PROJECT_DIR}/scripts/evaluation/evaluate_model.py"
+DM2D_DIR="${PROJECT_DIR}/Skeletonization_Suite"
+EVAL_SCRIPT="${PROJECT_DIR}/Utilities/evaluation/evaluate_model.py"
 
 # "Persistence Threshold" in the paper corresponds to ET threshold (with VE fixed at 0)
 PERSISTENCE_VALUES=(0 2 4 8 16 32 64 128)
@@ -40,7 +40,7 @@ run_config() {
     mkdir -p "$WORK_DIR/skeleton"
     
     # Run DM2D with min_size filtering
-    cd "$DM2D_DIR/Skeletonization_Suite"
+    cd "$DM2D_DIR"
     python "$DM2D_DIR/run_dm2d_tiles.py" \
         --lkl_dir "$LKL_DIR" \
         --output_dir "$WORK_DIR/dm2d" \

@@ -6,6 +6,12 @@ from matplotlib.patches import Rectangle, ConnectionPatch
 import tifffile
 import numpy as np
 
+from scale_bar import UM_PER_PX, add_scale_bar
+
+# Embed fonts as TrueType so text in the PDF output stays editable
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+
 # Base paths - derive from script location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))  # Up to WholeBrainProject
@@ -47,7 +53,7 @@ def get_rows(data_dir, outputs_dir):
         ("neuTube", os.path.join(outputs_dir, 'neutube_evaluation', 'overlays')),
         ("VESS", os.path.join(outputs_dir, 'vess_evaluation', 'overlays')),
         ("PHDF", os.path.join(outputs_dir, 'phd_evaluation', 'overlays')),
-        ("DM2D", os.path.join(outputs_dir, 'dm2d_vectorized_evaluation', 'overlays')),
+        ("DM2D", os.path.join(outputs_dir, 'dm2d_evaluation', 'overlays')),
     ]
 
 def read_image(path):
@@ -131,6 +137,7 @@ def main():
     fig = plt.figure(figsize=(22, 27))
     gs = fig.add_gridspec(num_rows, 6, width_ratios=[1]*6, wspace=0.02, hspace=0.02)
     headers = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)"]
+    bar_lengths = set()
 
     for r, (label, path) in enumerate(ROWS):
         for col_pair, img_name in enumerate(img_names):
@@ -141,6 +148,8 @@ def main():
             ax_full = fig.add_subplot(gs[r, col_pair * 2])
             full_img = read_image(find_image_file(path, img_name)) if find_image_file(path, img_name) else None
             ax_full.imshow(full_img if full_img else np.zeros((10, 10)), cmap='gray' if 'orig' in label.lower() else None)
+            if full_img:
+                bar_lengths.add(('full', add_scale_bar(ax_full, *full_img.size, UM_PER_PX[args.dataset], fontsize=14)))
             ax_full.set_xticks([]); ax_full.set_yticks([])
             if col_pair == 0:
                 ax_full.set_ylabel(label, fontsize=24, fontweight='bold')
@@ -151,6 +160,8 @@ def main():
             ax_crop = fig.add_subplot(gs[r, col_pair * 2 + 1])
             crop_img = get_cropped_image(path, img_name, crops[img_name])
             ax_crop.imshow(crop_img if crop_img else np.zeros((10, 10)), cmap='gray' if 'orig' in label.lower() else None)
+            if crop_img:
+                bar_lengths.add(('crop', add_scale_bar(ax_crop, *crop_img.size, UM_PER_PX[args.dataset], fontsize=14)))
             ax_crop.set_xticks([]); ax_crop.set_yticks([])
             if r == 0:
                 ax_crop.set_title(headers[col_pair * 2 + 1], fontsize=24, fontweight='bold', pad=20)
@@ -171,8 +182,11 @@ def main():
                     coordsA="data", coordsB="axes fraction", axesA=ax_full, axesB=ax_crop, color='lime', linewidth=2))
 
     plt.savefig(cfg["output_plot"], dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig(os.path.splitext(cfg["output_plot"])[0] + '.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     print(f"Saved: {cfg['output_plot']}")
+    print(f"Scale bars ({UM_PER_PX[args.dataset]} um/pixel): " +
+          ", ".join(f"{kind} panels {length} um" for kind, length in sorted(bar_lengths)))
 
 if __name__ == "__main__":
     main()

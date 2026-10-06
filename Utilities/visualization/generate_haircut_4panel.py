@@ -24,6 +24,12 @@ import json
 import sys
 from skimage import morphology
 
+from scale_bar import UM_PER_PX, add_scale_bar
+
+# Embed fonts as TrueType so text in the PDF output stays editable
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+
 # Paths - derive from script location
 import os
 SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -252,6 +258,8 @@ def generate_figure(images, circles):
     for i, (img_key, circle_key, title, label) in enumerate(zip(keys, circle_keys, titles, labels)):
         # Display image without circles (circles drawn as vector graphics)
         axes[i].imshow(images[img_key])
+        h, w = images[img_key].shape[:2]
+        bar_um = add_scale_bar(axes[i], w, h, UM_PER_PX['pmd'], fontsize=8)
         
         # Draw circles using matplotlib patches (vector graphics - stays sharp at any resolution)
         for (cx, cy) in circles[circle_key]:
@@ -281,9 +289,11 @@ def generate_figure(images, circles):
     fig.patch.set_linewidth(2)
     
     plt.savefig(output_path, dpi=300, facecolor='white', edgecolor='black')
+    plt.savefig(output_path.with_suffix('.pdf'), dpi=300, facecolor='white', edgecolor='black')
     plt.close()
     
     print(f"✓ Saved: {output_path}")
+    print(f"Scale bars: {bar_um} um ({UM_PER_PX['pmd']} um/pixel)")
 
 
 def main():
