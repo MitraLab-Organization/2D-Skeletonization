@@ -267,7 +267,7 @@ def generate_figure(images, circles):
                            edgecolor='lime', linewidth=1.0)
             axes[i].add_patch(circle)
         
-        axes[i].set_title(title, fontsize=11, fontweight='bold')
+        axes[i].set_title(title, fontsize=11)
         axes[i].axis('off')
         
         if label:

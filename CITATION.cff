@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "DM2D: skeletonization of neuronal processes using Discrete Morse techniques"
+type: software
+authors:
+  - family-names: Banerjee
+    given-names: Samik
+  - family-names: Stam
+    given-names: Caleb
+  - family-names: Tward
+    given-names: Daniel J.
+  - family-names: Shetty
+    given-names: Sahaj
+  - family-names: Savoia
+    given-names: Steven
+  - family-names: Mitra
+    given-names: Partha P.
+repository-code: "https://github.com/MitraLab-Organization/2D-Skeletonization"
+url: "https://hub.docker.com/r/samikbanerjee69/dm_full_pipeline_docker_cshl"
+preferred-citation:
+  type: article
+  title: "Skeletonization of neuronal processes using Discrete Morse techniques from computational topology"
+  authors:
+    - family-names: Banerjee
+      given-names: Samik
+    - family-names: Stam
+      given-names: Caleb
+    - family-names: Tward
+      given-names: Daniel J.
+    - family-names: Shetty
+      given-names: Sahaj
+    - family-names: Savoia
+      given-names: Steven
+    - family-names: Mitra
+      given-names: Partha P.
+  journal: "Nature Communications"

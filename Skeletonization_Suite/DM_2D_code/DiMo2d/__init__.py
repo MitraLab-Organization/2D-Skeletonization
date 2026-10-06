@@ -497,8 +497,7 @@ def haircut(dimo_vert,paths,ve_persistence_threshold, et_persistence_threshold, 
     
         p = valid_paths[i]
         if len(p) < 2:
-            output_edge.append(paths[i] + '\n')
-            print('less than 2')
+            # A single-vertex path has no edges to write
             continue
     
         # print(len(verts), p[0], p[1])

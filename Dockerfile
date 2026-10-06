@@ -97,8 +97,14 @@
     # ============================================================
     COPY Utilities/ /app/Utilities/
     COPY Baselines/skeletonization-for-gradient-based-optimization/ /app/Baselines/diffskel/
+    COPY Baselines/vess/ /app/Baselines/vess/
+    COPY Baselines/phd/ /app/Baselines/phd/
     COPY Skeletonization_Suite/ /app/Skeletonization_Suite/
     COPY Vectorization/ /app/Vectorization/
+
+    # Writes the Source Data .xlsx (export_source_data.py); kept out of environment.yml
+    # so adding it doesn't force a rebuild of the conda environment
+    RUN pip install --no-cache-dir openpyxl==3.1.5
 
     # Download DM2D model files from Google Drive
     RUN pip install gdown \

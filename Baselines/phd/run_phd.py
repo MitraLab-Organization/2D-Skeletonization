@@ -79,7 +79,11 @@ def harvest_results(lkl_dir, output_dir):
         out_tif = os.path.join(output_dir, clean_name)
         if not os.path.exists(out_tif):
             try:
-                img = draw_swc(parse_swc(swc_path))
+                # Draw on a canvas the size of the input tile (not all tiles are 1000x1000)
+                lkl = cv2.imread(os.path.join(lkl_dir, clean_name), cv2.IMREAD_UNCHANGED)
+                if lkl is None:
+                    raise FileNotFoundError(f"input tile {clean_name} not found in {lkl_dir}")
+                img = draw_swc(parse_swc(swc_path), shape=lkl.shape[:2])
                 tifffile.imwrite(out_tif, img)
             except Exception as e:
                 print(f"Failed to convert {swc_path}: {e}")
@@ -107,8 +111,8 @@ def main():
     lkl_dir = cfg["lkl_dir"]
     gt_dir = cfg["gt_dir"]
     output_dir = cfg["output_dir"]
-    macro_path = f"{BASE_DIR}/scripts/inference/run_phd_fast.ijm"
-    eval_script = f"{BASE_DIR}/scripts/evaluation/evaluate_model.py"
+    macro_path = os.path.join(SCRIPT_DIR, "run_phd_fast.ijm")
+    eval_script = f"{BASE_DIR}/Utilities/evaluation/evaluate_model.py"
 
     os.makedirs(output_dir, exist_ok=True)
 

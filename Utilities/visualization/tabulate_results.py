@@ -17,7 +17,7 @@ def get_methods(outputs_dir):
     return {
         'bwskel': os.path.join(outputs_dir, 'bwskel_evaluation'),
         'Diff. Skel': os.path.join(outputs_dir, 'diffskel_evaluation'),
-        'neutube': os.path.join(outputs_dir, 'neutube_evaluation'),
+        'neuTube': os.path.join(outputs_dir, 'neutube_evaluation'),
         'VESS': os.path.join(outputs_dir, 'vess_evaluation'),
         'PHDF': os.path.join(outputs_dir, 'phd_evaluation'),
         'DM2D': os.path.join(outputs_dir, 'dm2d_evaluation'),
@@ -30,6 +30,24 @@ def load_metrics(eval_dir):
     with open(json_path, 'r') as f:
         data = json.load(f)
     return data['overall_metrics']
+
+def create_mean_sd_table(methods_dict, output_csv):
+    """Mean and sample SD of each metric across tiles (Table 1 reports the pooled value)."""
+    records = []
+    for method, path in methods_dict.items():
+        per_tile_path = os.path.join(path, 'per_image_metrics.csv')
+        if not os.path.exists(per_tile_path):
+            continue
+        df = pd.read_csv(per_tile_path)
+        rec = {'Method': method, 'n tiles': len(df)}
+        for column, name in [('precision', 'Precision'), ('recall', 'Recall'), ('f_score', 'F-Score'), ('iou', 'IoU')]:
+            rec[f'{name} mean'] = df[column].mean()
+            rec[f'{name} SD'] = df[column].std(ddof=1)
+        records.append(rec)
+    if records:
+        pd.DataFrame(records).to_csv(output_csv, index=False)
+        print(f"Saved table to {output_csv}")
+
 
 def create_table(methods_dict, output_csv, title):
     records = []
@@ -102,6 +120,7 @@ def main():
     pmd_methods = get_methods(pmd_outputs)
     df_pmd = create_table(pmd_methods, os.path.join(results_dir, 'results_PMD.csv'), 'PMD Dataset Evaluation')
     save_table_image(df_pmd, 'PMD Dataset Results', os.path.join(results_dir, 'results_PMD.png'))
+    create_mean_sd_table(pmd_methods, os.path.join(results_dir, 'results_PMD_mean_sd.csv'))
     
     # STP
     print("\nGenerating STP Table...")
@@ -109,6 +128,7 @@ def main():
     stp_methods = get_methods(stp_outputs)
     df_stp = create_table(stp_methods, os.path.join(results_dir, 'results_STP.csv'), 'STP Dataset Evaluation')
     save_table_image(df_stp, 'STP Dataset Results', os.path.join(results_dir, 'results_STP.png'))
+    create_mean_sd_table(stp_methods, os.path.join(results_dir, 'results_STP_mean_sd.csv'))
 
 if __name__ == "__main__":
     main()

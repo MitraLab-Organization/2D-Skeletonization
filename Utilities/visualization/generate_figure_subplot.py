@@ -152,7 +152,7 @@ def main():
                 bar_lengths.add(('full', add_scale_bar(ax_full, *full_img.size, UM_PER_PX[args.dataset], fontsize=14)))
             ax_full.set_xticks([]); ax_full.set_yticks([])
             if col_pair == 0:
-                ax_full.set_ylabel(label, fontsize=24, fontweight='bold')
+                ax_full.set_ylabel(label, fontsize=24)
             if r == 0:
                 ax_full.set_title(headers[col_pair * 2], fontsize=24, fontweight='bold', pad=20)
 
@@ -182,7 +182,9 @@ def main():
                     coordsA="data", coordsB="axes fraction", axesA=ax_full, axesB=ax_crop, color='lime', linewidth=2))
 
     plt.savefig(cfg["output_plot"], dpi=300, bbox_inches='tight', pad_inches=0.1)
-    plt.savefig(os.path.splitext(cfg["output_plot"])[0] + '.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    # The figure is drawn at 22 x 27 in, so 150 dpi here is ~450 dpi at the journal's ~7 in print
+    # width, and keeps the PDF well under the 30 MB file limit
+    plt.savefig(os.path.splitext(cfg["output_plot"])[0] + '.pdf', dpi=150, bbox_inches='tight', pad_inches=0.1)
     plt.close()
     print(f"Saved: {cfg['output_plot']}")
     print(f"Scale bars ({UM_PER_PX[args.dataset]} um/pixel): " +

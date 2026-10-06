@@ -29,6 +29,8 @@ import tifffile
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'visualization'))
 from scale_bar import UM_PER_PX, add_scale_bar
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'evaluation'))
+from evaluate_model import compute_point_metrics, create_overlay_image
 
 # Embed fonts as TrueType so text in the PDF output stays editable
 plt.rcParams['pdf.fonttype'] = 42
@@ -115,42 +117,27 @@ def read_image(path):
     return None
 
 
-def create_overlay(img, skeleton, gt):
-    """Create color-coded overlay showing TP/FP/FN.
-    
-    Colors (same as evaluate_model):
-    - Cyan: True Positives (skeleton matched with GT)
-    - Magenta: False Negatives (GT not matched)
-    - Yellow: False Positives (skeleton not matched)
+def create_overlay(img, skeleton, gt, crop=None, distance_threshold=5):
+    """Colour-coded overlay, using the same matching and colours as evaluate_model.py.
+
+    - Cyan: True Positives (skeleton within distance_threshold of GT)
+    - Magenta: False Negatives (GT with no skeleton within distance_threshold)
+    - Yellow: False Positives (skeleton with no GT within distance_threshold)
+
+    Matching is done on the whole tile; crop = (x1, y1, x2, y2) is applied afterwards,
+    so pixels near the crop edge are classified exactly as in the evaluation.
     """
-    # Convert to RGB
-    if len(img.shape) == 2:
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    else:
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    
-    # Get binary masks
-    if len(skeleton.shape) == 3:
-        skel_mask = cv2.cvtColor(skeleton, cv2.COLOR_BGR2GRAY) > 0
-    else:
-        skel_mask = skeleton > 0
-        
-    if len(gt.shape) == 3:
-        gt_mask = cv2.cvtColor(gt, cv2.COLOR_BGR2GRAY) > 0
-    else:
-        gt_mask = gt > 0
-    
-    # Calculate TP, FP, FN
-    tp = skel_mask & gt_mask
-    fp = skel_mask & ~gt_mask
-    fn = ~skel_mask & gt_mask
-    
-    # Apply colors
-    img_rgb[fn] = [255, 0, 255]   # Magenta for FN
-    img_rgb[fp] = [255, 255, 0]   # Yellow for FP
-    img_rgb[tp] = [0, 255, 255]   # Cyan for TP
-    
-    return img_rgb
+    skel_mask = (cv2.cvtColor(skeleton, cv2.COLOR_BGR2GRAY) if skeleton.ndim == 3 else skeleton) > 0
+    gt_mask = (cv2.cvtColor(gt, cv2.COLOR_BGR2GRAY) if gt.ndim == 3 else gt) > 0
+
+    metrics = compute_point_metrics(np.argwhere(skel_mask), np.argwhere(gt_mask),
+                                    distance_threshold=distance_threshold)
+    overlay = create_overlay_image(img, metrics['pred_tp'], metrics['gt_fn'], metrics['pred_fp'])
+
+    if crop is not None:
+        x1, y1, x2, y2 = crop
+        overlay = overlay[y1:y2, x1:x2]
+    return overlay
 
 
 class MinSizeAblationTool:
@@ -225,7 +212,7 @@ class MinSizeAblationTool:
         # Create overlays
         if self.skel_no_filter is not None:
             overlay_no_filter = create_overlay(
-                cv2.cvtColor(self.original_img, cv2.COLOR_BGR2RGB),
+                self.original_img,
                 self.skel_no_filter, 
                 self.gt_img
             )
@@ -234,7 +221,7 @@ class MinSizeAblationTool:
         
         if self.skel_filtered is not None:
             overlay_filtered = create_overlay(
-                cv2.cvtColor(self.original_img, cv2.COLOR_BGR2RGB),
+                self.original_img,
                 self.skel_filtered,
                 self.gt_img
             )
@@ -393,27 +380,21 @@ class MinSizeAblationTool:
             skel_no_filter = read_image(skel_path_no_filter)
             skel_filtered = read_image(skel_path_filtered)
             
-            # Crop all images
-            orig_crop = orig[y1:y2, x1:x2]
-            gt_crop = gt[y1:y2, x1:x2]
-            skel_no_filter_crop = skel_no_filter[y1:y2, x1:x2]
-            skel_filtered_crop = skel_filtered[y1:y2, x1:x2]
-            
             # Create overlays
-            overlay_no_filter = create_overlay(orig_crop.copy(), skel_no_filter_crop, gt_crop)
-            overlay_filtered = create_overlay(orig_crop.copy(), skel_filtered_crop, gt_crop)
+            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2))
+            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2))
             
             # Create 2-panel figure
             fig, axes = plt.subplots(1, 2, figsize=(8, 4))
             
             axes[0].imshow(overlay_no_filter)
             add_scale_bar(axes[0], overlay_no_filter.shape[1], overlay_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-            axes[0].set_title('Without Filtering', fontsize=12, fontweight='bold')
+            axes[0].set_title('Without Filtering', fontsize=12)
             axes[0].axis('off')
             
             axes[1].imshow(overlay_filtered)
             add_scale_bar(axes[1], overlay_filtered.shape[1], overlay_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-            axes[1].set_title('With Filtering', fontsize=12, fontweight='bold')
+            axes[1].set_title('With Filtering', fontsize=12)
             axes[1].axis('off')
             
             plt.tight_layout(pad=0.5)
@@ -454,13 +435,9 @@ class MinSizeAblationTool:
             skel_no_filter = read_image(self.sweep_dir / "min_size_0" / "skeleton" / f"{image_name}.tif")
             skel_filtered = read_image(self.sweep_dir / f"min_size_{self.min_size_optimal}" / "skeleton" / f"{image_name}.tif")
             
-            orig_crop = orig[y1:y2, x1:x2]
-            gt_crop = gt[y1:y2, x1:x2]
-            skel_no_filter_crop = skel_no_filter[y1:y2, x1:x2]
-            skel_filtered_crop = skel_filtered[y1:y2, x1:x2]
             
-            overlay_no_filter = create_overlay(orig_crop.copy(), skel_no_filter_crop, gt_crop)
-            overlay_filtered = create_overlay(orig_crop.copy(), skel_filtered_crop, gt_crop)
+            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2))
+            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2))
             
             return overlay_no_filter, overlay_filtered
         
@@ -474,7 +451,7 @@ class MinSizeAblationTool:
         # (a) - Without Size Filtering
         axes[0].imshow(a_no_filter)
         bar_um = add_scale_bar(axes[0], a_no_filter.shape[1], a_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-        axes[0].set_title('Without Size Filtering', fontsize=12, fontweight='bold')
+        axes[0].set_title('Without Size Filtering', fontsize=12)
         axes[0].axis('off')
         axes[0].text(0.02, 0.98, '(a)', transform=axes[0].transAxes, fontsize=14, 
                      fontweight='bold', va='top', ha='left', color='white',
@@ -483,13 +460,13 @@ class MinSizeAblationTool:
         # (a) - With Size Filtering
         axes[1].imshow(a_filtered)
         bar_um = add_scale_bar(axes[1], a_filtered.shape[1], a_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-        axes[1].set_title('With Size Filtering', fontsize=12, fontweight='bold')
+        axes[1].set_title('With Size Filtering', fontsize=12)
         axes[1].axis('off')
         
         # (b) - Without Size Filtering
         axes[2].imshow(b_no_filter)
         bar_um = add_scale_bar(axes[2], b_no_filter.shape[1], b_no_filter.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-        axes[2].set_title('Without Size Filtering', fontsize=12, fontweight='bold')
+        axes[2].set_title('Without Size Filtering', fontsize=12)
         axes[2].axis('off')
         axes[2].text(0.02, 0.98, '(b)', transform=axes[2].transAxes, fontsize=14, 
                      fontweight='bold', va='top', ha='left', color='white',
@@ -498,7 +475,7 @@ class MinSizeAblationTool:
         # (b) - With Size Filtering
         axes[3].imshow(b_filtered)
         bar_um = add_scale_bar(axes[3], b_filtered.shape[1], b_filtered.shape[0], UM_PER_PX[self.dataset_name], fontsize=9)
-        axes[3].set_title('With Size Filtering', fontsize=12, fontweight='bold')
+        axes[3].set_title('With Size Filtering', fontsize=12)
         axes[3].axis('off')
         
         plt.tight_layout(pad=0.5)

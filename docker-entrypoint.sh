@@ -149,6 +149,7 @@ run_plots() {
     python /app/Utilities/visualization/generate_figure_subplot.py --dataset stp
     python /app/Utilities/visualization/tabulate_results.py
     python /app/Utilities/visualization/generate_results_barplots.py
+    python /app/Utilities/visualization/export_source_data.py
     cp -r /app/results/* "$OUTPUT_DIR/" 2>/dev/null || true
 }
 

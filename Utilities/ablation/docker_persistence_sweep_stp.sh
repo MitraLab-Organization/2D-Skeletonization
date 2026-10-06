@@ -57,7 +57,7 @@ run_config() {
         --model_name "$NAME" \
         --gt_dir "$GT_DIR" \
         --img_dir "$IMG_DIR" \
-        --output_dir "$WORK_DIR/evaluation" 2>/dev/null || true
+        --output_dir "$WORK_DIR/evaluation"
 }
 
 echo "DM2D Persistence Sweep - STP Dataset"

@@ -45,8 +45,8 @@ def main():
     lkl_dir = cfg["lkl_dir"]
     gt_dir = cfg["gt_dir"]
     output_dir = cfg["output_dir"]
-    macro_path = f"{BASE_DIR}/scripts/inference/run_vess.ijm"
-    eval_script = f"{BASE_DIR}/scripts/evaluation/evaluate_model.py"
+    macro_path = os.path.join(SCRIPT_DIR, "run_vess.ijm")
+    eval_script = f"{BASE_DIR}/Utilities/evaluation/evaluate_model.py"
 
     os.makedirs(output_dir, exist_ok=True)
 
