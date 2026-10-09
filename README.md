@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/983004472.svg)](https://doi.org/10.5281/zenodo.23267676)
+
 # DM2D Whole-Brain Skeletonization Pipeline
 
 This repository contains the official Docker implementation of the DM2D pipeline for neuron skeletonization.
