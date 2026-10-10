@@ -13,8 +13,7 @@ import time
 
 # Setup paths - derive from script location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))  # Up to WholeBrainProject
-NEUTUBE_DIR = os.path.join(BASE_DIR, "tools", "neutube")
+NEUTUBE_DIR = SCRIPT_DIR  # neurolabi/ sits next to this script
 MODULE_PATH = os.path.join(NEUTUBE_DIR, "neurolabi/python/module")
 SKELETONIZE_SCRIPT = os.path.join(NEUTUBE_DIR, "neurolabi/python/skeletonize.py")
 CONFIG_PATH = os.path.join(NEUTUBE_DIR, "neurolabi/json/skeletonize.json")
