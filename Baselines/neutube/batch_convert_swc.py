@@ -32,7 +32,7 @@ def swc_to_image(swc_path, img_shape, out_path):
             if pid != -1 and pid in coords:
                 p1 = coords[int(row['id'])]
                 p2 = coords[pid]
-                cv2.line(img, p1, p2, 255, 1, lineType=cv2.LINE_AA)
+                cv2.line(img, p1, p2, 255, 1, lineType=cv2.LINE_8)
                 
     cv2.imwrite(out_path, img)
     return out_path

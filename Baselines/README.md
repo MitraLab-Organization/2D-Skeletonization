@@ -27,7 +27,7 @@ python Baselines/phd/run_phd.py --dataset pmd
 
 ### Differentiable Skeletonization
 ```bash
-python Baselines/skeletonization-for-gradient-based-optimization/batch_process.py --input_folder data/pmd/lkl --output_folder outputs/pmd/diffskel
+python Baselines/skeletonization-for-gradient-based-optimization/batch_process.py --input_folder data/pmd/lkl --output_folder outputs/pmd/diffskel --probabilistic --beta 0.33 --tau 1.0 --seed 0
 ```
 
 ### bwskel (MATLAB)

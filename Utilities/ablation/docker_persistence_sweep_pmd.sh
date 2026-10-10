@@ -57,7 +57,8 @@ run_config() {
         --model_name "$NAME" \
         --gt_dir "$GT_DIR" \
         --img_dir "$IMG_DIR" \
-        --output_dir "$WORK_DIR/evaluation"
+        --output_dir "$WORK_DIR/evaluation" \
+        --distance_threshold 5
 }
 
 echo "DM2D Persistence Sweep - PMD Dataset"

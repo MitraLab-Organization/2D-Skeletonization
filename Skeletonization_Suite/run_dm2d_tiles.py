@@ -108,13 +108,13 @@ def json_to_skeleton(json_path, image_shape):
         if geom_type == 'LineString' and len(coords) >= 2:
             x1, y1 = int(coords[0][0]), int(-coords[0][1])
             x2, y2 = int(coords[1][0]), int(-coords[1][1])
-            cv2.line(skeleton, (x1, y1), (x2, y2), 255, 1, lineType=cv2.LINE_AA)
+            cv2.line(skeleton, (x1, y1), (x2, y2), 255, 1, lineType=cv2.LINE_8)
         elif geom_type == 'MultiLineString':
             for segment in coords:
                 if len(segment) >= 2:
                     x1, y1 = int(segment[0][0]), int(-segment[0][1])
                     x2, y2 = int(segment[1][0]), int(-segment[1][1])
-                    cv2.line(skeleton, (x1, y1), (x2, y2), 255, 1, lineType=cv2.LINE_AA)
+                    cv2.line(skeleton, (x1, y1), (x2, y2), 255, 1, lineType=cv2.LINE_8)
     
     return skeleton
 

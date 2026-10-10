@@ -53,7 +53,7 @@ for SZ in "${MIN_SIZE_VALUES[@]}"; do
 
         python "$EVAL_SCRIPT" \
             --model_dir "$WORK_DIR/skeleton" --model_name "DM2D_MinSize_${SZ}" \
-            --gt_dir "$GT_DIR" --img_dir "$IMG_DIR" --output_dir "$WORK_DIR/evaluation"
+            --gt_dir "$GT_DIR" --img_dir "$IMG_DIR" --output_dir "$WORK_DIR/evaluation" --distance_threshold 5
     else
         echo "  Skipping min_size=$SZ (already done)"
     fi

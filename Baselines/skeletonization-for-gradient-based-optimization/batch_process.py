@@ -122,6 +122,8 @@ def main():
                         help='Beta parameter for probabilistic mode (default: 0.33)')
     parser.add_argument('--tau', type=float, default=1.0,
                         help='Tau parameter for probabilistic mode (default: 1.0)')
+    parser.add_argument('--seed', type=int, default=0,
+                        help='Random seed for the probabilistic noise, reset for each image (default: 0)')
     parser.add_argument('--simple_point_detection', type=str, default='Boolean',
                         choices=['Boolean', 'Euler'],
                         help='Simple point detection method (default: Boolean)')
@@ -160,6 +162,7 @@ def main():
     if args.probabilistic:
         print(f"  Beta: {args.beta}")
         print(f"  Tau: {args.tau}")
+        print(f"  Seed: {args.seed}")
     print(f"  Simple point detection: {args.simple_point_detection}")
     print(f"  Num iterations: {args.num_iter}")
     if args.multi_step > 1:
@@ -167,7 +170,9 @@ def main():
     print()
     
     # Process each image
-    for img_path in tqdm(image_files, desc="Processing images"):
+    for img_path in tqdm(sorted(image_files), desc="Processing images"):
+        # Same noise for an image whatever order the files are processed in
+        torch.manual_seed(args.seed)
         try:
             # Determine output filename
             if img_path.suffix.lower() == '.npy':

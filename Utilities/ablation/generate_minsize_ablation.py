@@ -47,6 +47,7 @@ PMD_CONFIG = {
     'gt_dir': BASE_DIR / 'data' / 'pmd' / 'GT',
     'sweep_dir': BASE_DIR / 'outputs' / 'pmd' / 'dm2d_min_size_sweep',
     'min_size_optimal': 40,
+    'distance_threshold': 5,  # match distance in pixels, same as the evaluation
     'output_dir': BASE_DIR / 'outputs' / 'ablation' / 'minsize_ablation_PMD',
     'image_a': 'PMD1211_115_8201_17701',
     'image_b': 'PMD1211_58_5001_12501',
@@ -63,6 +64,7 @@ STP_CONFIG = {
     'gt_dir': BASE_DIR / 'data' / 'stp' / 'GT',
     'sweep_dir': BASE_DIR / 'outputs' / 'stp' / 'dm2d_min_size_sweep',
     'min_size_optimal': 12,
+    'distance_threshold': 5,  # match distance in pixels, same as the evaluation
     'output_dir': BASE_DIR / 'outputs' / 'ablation' / 'minsize_ablation_STP',
     'image_a': '190322_74_2301_5401',
     'image_b': '190322_59_3301_5601',
@@ -214,7 +216,8 @@ class MinSizeAblationTool:
             overlay_no_filter = create_overlay(
                 self.original_img,
                 self.skel_no_filter, 
-                self.gt_img
+                self.gt_img,
+                distance_threshold=self.config['distance_threshold']
             )
             overlay_no_filter = cv2.cvtColor(overlay_no_filter, cv2.COLOR_RGB2BGR)
             combined[30:30+h, 0:w] = overlay_no_filter
@@ -223,7 +226,8 @@ class MinSizeAblationTool:
             overlay_filtered = create_overlay(
                 self.original_img,
                 self.skel_filtered,
-                self.gt_img
+                self.gt_img,
+                distance_threshold=self.config['distance_threshold']
             )
             overlay_filtered = cv2.cvtColor(overlay_filtered, cv2.COLOR_RGB2BGR)
             combined[30:30+h, w+self.gap:] = overlay_filtered
@@ -381,8 +385,10 @@ class MinSizeAblationTool:
             skel_filtered = read_image(skel_path_filtered)
             
             # Create overlays
-            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2))
-            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2))
+            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2),
+                                           distance_threshold=self.config['distance_threshold'])
+            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2),
+                                           distance_threshold=self.config['distance_threshold'])
             
             # Create 2-panel figure
             fig, axes = plt.subplots(1, 2, figsize=(8, 4))
@@ -436,8 +442,10 @@ class MinSizeAblationTool:
             skel_filtered = read_image(self.sweep_dir / f"min_size_{self.min_size_optimal}" / "skeleton" / f"{image_name}.tif")
             
             
-            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2))
-            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2))
+            overlay_no_filter = create_overlay(orig, skel_no_filter, gt, crop=(x1, y1, x2, y2),
+                                           distance_threshold=self.config['distance_threshold'])
+            overlay_filtered = create_overlay(orig, skel_filtered, gt, crop=(x1, y1, x2, y2),
+                                           distance_threshold=self.config['distance_threshold'])
             
             return overlay_no_filter, overlay_filtered
         

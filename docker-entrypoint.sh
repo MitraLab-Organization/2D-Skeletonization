@@ -16,15 +16,20 @@ get_dataset_params() {
         pmd)
             DM2D_ET_PERSISTENCE=64
             DM2D_MIN_SIZE=40
+            EVAL_DISTANCE=5   # match distance in pixels (Methods 1.4)
             ;;
         stp)
             DM2D_ET_PERSISTENCE=32
             DM2D_MIN_SIZE=12
+            # Methods 1.4 says 3 px for STP, but the published Table 1b was computed at 5 px;
+            # kept at 5 to reproduce the table (see revision checklist)
+            EVAL_DISTANCE=5
             ;;
         *)
             # Default parameters for custom datasets
             DM2D_ET_PERSISTENCE=32
             DM2D_MIN_SIZE=20
+            EVAL_DISTANCE=5
             echo "Note: Using default parameters for dataset '$ds' (et_persistence=$DM2D_ET_PERSISTENCE, min_size=$DM2D_MIN_SIZE)"
             ;;
     esac
@@ -61,7 +66,8 @@ run_inference() {
     echo "--- diffskel ---"
     python /app/Baselines/diffskel/batch_process.py \
         --input_folder "$DATA_DIR/$DATASET/lkl" \
-        --output_folder "$OUTPUT_DIR/$DATASET/diffskel"
+        --output_folder "$OUTPUT_DIR/$DATASET/diffskel" \
+        --probabilistic --beta 0.33 --tau 1.0 --seed 0
     
     # DM2D
     echo "--- DM2D ---"
@@ -76,7 +82,8 @@ run_inference() {
 # Run evaluation on a dataset
 run_evaluation() {
     local DATASET="$1"
-    echo "=== Evaluating $DATASET ==="
+    get_dataset_params "$DATASET"
+    echo "=== Evaluating $DATASET (match distance ${EVAL_DISTANCE} px) ==="
     
     for method in bwskel diffskel neutube vess phd dm2d; do
         if [ -d "$OUTPUT_DIR/$DATASET/$method" ]; then
@@ -91,7 +98,8 @@ run_evaluation() {
                 --model_name "$method" \
                 --gt_dir "$DATA_DIR/$DATASET/GT" \
                 --img_dir "$DATA_DIR/$DATASET/img" \
-                --output_dir "$OUTPUT_DIR/$DATASET/${method}_evaluation"
+                --output_dir "$OUTPUT_DIR/$DATASET/${method}_evaluation" \
+                --distance_threshold "$EVAL_DISTANCE"
         fi
     done
 }

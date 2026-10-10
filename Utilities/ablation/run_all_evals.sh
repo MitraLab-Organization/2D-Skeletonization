@@ -16,6 +16,10 @@ fi
 
 DATASET="$1"
 
+# Match distance in pixels. 5 for both datasets, matching the published Table 1
+# (Methods 1.4 says 3 for STP; see revision checklist)
+EVAL_DISTANCE=5
+
 # Script directory for finding project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -39,7 +43,8 @@ run_eval() {
         --model_name "$MODEL_NAME" \
         --gt_dir "$GT_DIR" \
         --img_dir "$IMG_DIR" \
-        --output_dir "$OUTPUTS_DIR/$DATASET/$OUTPUT_DIR"
+        --output_dir "$OUTPUTS_DIR/$DATASET/$OUTPUT_DIR" \
+        --distance_threshold "$EVAL_DISTANCE"
 }
 
 # Run for all methods
